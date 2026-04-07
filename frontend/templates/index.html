@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Naar Sprint Dashboard | Executive Analytics</title>
+    <link rel="icon" href="https://gargashjirabackup.blob.core.windows.net/logos/naar/favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/settings-panel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/legend-table.css') }}">
+</head>
+<body>
+<div class="dashboard-container">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo-area">
+            <img src="https://gargashjirabackup.blob.core.windows.net/logos/naar/Naar%20logo.png" alt="Naar" class="logo-img">
+            <div class="logo-text"><h1>Naar Sprint Dashboard</h1></div>
+        </div>
+        <div class="header-right">
+            <div class="badge-sprint">
+                <i class="fas fa-chart-line"></i>
+                <span id="activeSprintBadge">Loading sprints...</span>
+            </div>
+            <!-- Export dropdown -->
+             
+            <button id="refreshBtn" class="refresh-btn" title="Refresh data">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <!-- Settings button injected by settings-panel.js -->
+        </div>
+    </div>
+
+    <!-- HIGHLIGHTS -->
+    <div class="highlights-section" id="highlightsSection">
+        <div class="highlights-header" id="highlightsToggle">
+            <div class="highlights-header-left">
+                <i class="fas fa-star"></i>
+                <span>Highlights</span>
+                <span id="highlightsSummaryLabel" style="font-size:0.82rem;color:#5e6c84;font-weight:500;margin-left:0.3rem;"></span>
+            </div>
+            <button class="highlights-toggle-btn" id="highlightsToggleBtn"><i class="fas fa-chevron-up"></i></button>
+        </div>
+        <div class="highlights-body" id="highlightsBody">
+            <div class="highlights-loading">
+                <div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0;"></div>
+                Loading highlights…
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 1: Sprint Selector + Key Metrics -->
+    <div class="row-one-split">
+        <div class="filter-half">
+            <div class="filter-card">
+                <div class="filter-header">
+                    <h3><i class="fas fa-filter"></i> Sprint Selector</h3>
+                    <button id="clearAllSprintsBtn" class="btn-clear"><i class="fas fa-times-circle"></i> Clear All</button>
+                </div>
+                <div class="multi-select-container">
+                    <div class="multi-select-trigger" id="sprintDropdownTrigger">
+                        <span id="selectedSprintsLabel">Select sprints...</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="multi-select-dropdown" id="sprintDropdownMenu">
+                        <div class="checkbox-group-scroll" id="sprintChecklist">
+                            <div class="loading-spinner-small"><div class="spinner"></div> Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="metrics-half">
+            <div class="combined-metrics-box">
+                <div class="metric-row-item">
+                    <div class="metric-row-label">Total Issues</div>
+                    <div class="metric-row-value" id="totalTicketsCombined">0</div>
+                </div>
+                <div class="metric-row-item">
+                    <div class="metric-row-label">Sprint Remaining (Weekdays)</div>
+                    <div class="metric-row-value" id="sprintDaysRemaining">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 2: 4 Metric Tiles -->
+    <div class="metrics-four-row">
+        <div class="metric-four-tile story-tile">
+            <div class="metric-four-icon"><i class="fas fa-book-open"></i></div>
+            <div class="metric-four-content">
+                <div class="metric-four-value" id="storiesCountTile">0</div>
+                <div class="metric-four-label">Story</div>
+            </div>
+        </div>
+        <div class="metric-four-tile improvement-tile">
+            <div class="metric-four-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="metric-four-content">
+                <div class="metric-four-value" id="improvementsCount">0</div>
+                <div class="metric-four-label">Improvement</div>
+            </div>
+        </div>
+        <div class="metric-four-tile bug-tile">
+            <div class="metric-four-icon"><i class="fas fa-bug"></i></div>
+            <div class="metric-four-content">
+                <div class="metric-four-value" id="bugsCount">0</div>
+                <div class="metric-four-label">Bugs</div>
+            </div>
+        </div>
+        <div class="metric-four-tile incident-tile">
+            <div class="metric-four-icon incident-icon-wrap">
+                <img src="https://gargashjirabackup.blob.core.windows.net/logos/naar/incident.png"
+                     alt="Incident" class="incident-tile-img">
+            </div>
+            <div class="metric-four-content">
+                <div class="metric-four-value" id="incidentsCount">0</div>
+                <div class="metric-four-label">Incidents</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 3: Charts -->
+    <div class="charts-row">
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-chart-bar"></i> Issue Types Breakdown <span class="badge-subtask">Excluding Sub-tasks</span></div>
+            <div class="chart-canvas-wrapper"><canvas id="issueTypeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-chart-pie"></i> Priority Distribution</div>
+            <div class="chart-canvas-wrapper"><canvas id="priorityChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ROW 4: Components + Heat -->
+    <div class="components-heat-row">
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-cubes"></i> Components Distribution (Live from Jira)</div>
+            <div class="full-width-canvas"><canvas id="componentChart"></canvas></div>
+        </div>
+        <div class="heat-chart-container">
+            <div class="chart-title"><i class="fas fa-fire"></i> Heat Distribution — Priority × Issue Type <span class="badge-subtask">Bugs &amp; Incidents only</span></div>
+            <div class="heat-chart-wrapper"><canvas id="heatChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ROW 5: Epics + Platform -->
+    <div class="epic-platform-row">
+        <div class="epic-table-section">
+            <div class="epic-table-header">
+                <div class="epic-table-title">
+                    <i class="fas fa-layer-group"></i>
+                    Epics in Sprint
+                    <span class="count-badge" id="epicTableCount">0</span>
+                </div>
+                <div class="epic-table-actions">
+                    <div class="epic-add-col-wrap">
+                        <button id="epicAddColumnBtn" class="btn-add-column" title="Show/hide columns">
+                            <i class="fas fa-columns"></i> Columns
+                        </button>
+                        <div id="epicColumnMenu" class="epic-column-menu"></div>
+                    </div>
+                    <div class="epic-search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="epicSearchInput" placeholder="Search epics…" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <div class="epic-table-wrapper">
+                <table class="epic-table">
+                    <thead>
+                        <tr>
+                            <th style="width:110px;">Epic Key</th>
+                            <th>Epic Summary</th>
+                            <th style="width:150px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="epicTableBody">
+                        <tr><td colspan="3" style="text-align:center;color:#5e6c84;padding:28px 0;">Select a sprint to load Epic data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="epic-pagination-row" id="epicPagination"></div>
+        </div>
+
+        <div class="platform-sections">
+            <h3 class="platforms-title"><i class="fas fa-layer-group"></i> Platform-wise Breakdown</h3>
+            <div class="platform-grid" id="platformGrid"></div>
+        </div>
+    </div>
+
+    <footer>
+        <i class="fas fa-sync-alt"></i> Data refreshed based on selected sprints · Powered by Jira Agile API · Excludes Sub-tasks
+    </footer>
+</div>
+
+<script>
+    const DASHBOARD_EPIC_PAGE_SIZE = {{ epic_page_size | default(8) }};
+    const JIRA_PLATFORM_FIELD = "{{ platform_field }}";
+</script>
+<script type="module" src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

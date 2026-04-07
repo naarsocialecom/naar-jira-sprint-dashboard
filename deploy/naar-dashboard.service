@@ -1,0 +1,37 @@
+[Unit]
+Description=Naar Sprint Dashboard (Flask + Gunicorn)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+# ── Change this to the user that owns the project ──
+User=ubuntu
+Group=ubuntu
+
+# ── Absolute path to your project root ──
+WorkingDirectory=/opt/naar-live/backend
+
+# ── Load .env before starting ──
+EnvironmentFile=/opt/naar-live/backend/.env
+
+# ── Gunicorn: 4 workers, bind to 127.0.0.1:5005 ──
+# Nginx will reverse-proxy from port 80/443 to here.
+ExecStart=/opt/naar-live/backend/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 127.0.0.1:5005 \
+    --timeout 120 \
+    --access-logfile /var/log/naar-dashboard/access.log \
+    --error-logfile  /var/log/naar-dashboard/error.log \
+    --log-level info \
+    app:app
+
+Restart=always
+RestartSec=5
+
+# ── Security hardening ──
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
