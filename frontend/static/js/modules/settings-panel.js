@@ -9,7 +9,6 @@ import { Settings, saveSettingsToStorage } from './state.js';
 
 // ── Only 2 optional columns (removed Assignee, Priority, Sprint) ─
 export const EPIC_EXTRA_COLUMNS = [
-    { key: 'issueCount', label: 'Issue Count' },
     { key: 'dueDate',    label: 'Due Date'    },
     { key: 'components', label: 'Components'  },
 ];
