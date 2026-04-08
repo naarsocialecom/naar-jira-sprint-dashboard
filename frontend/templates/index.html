@@ -25,8 +25,6 @@
                 <i class="fas fa-chart-line"></i>
                 <span id="activeSprintBadge">Loading sprints...</span>
             </div>
-            <!-- Export dropdown -->
-             
             <button id="refreshBtn" class="refresh-btn" title="Refresh data">
                 <i class="fas fa-sync-alt"></i>
             </button>
@@ -92,32 +90,43 @@
         <div class="metric-four-tile story-tile">
             <div class="metric-four-icon"><i class="fas fa-book-open"></i></div>
             <div class="metric-four-content">
-                <div class="metric-four-value" id="storiesCountTile">0</div>
                 <div class="metric-four-label">Story</div>
+                <div class="metric-four-value" id="storiesCountTile">0</div>
             </div>
         </div>
+
         <div class="metric-four-tile improvement-tile">
             <div class="metric-four-icon"><i class="fas fa-chart-line"></i></div>
             <div class="metric-four-content">
-                <div class="metric-four-value" id="improvementsCount">0</div>
                 <div class="metric-four-label">Improvement</div>
+                <div class="metric-four-value" id="improvementsCount">0</div>
             </div>
         </div>
+
         <div class="metric-four-tile bug-tile">
             <div class="metric-four-icon"><i class="fas fa-bug"></i></div>
             <div class="metric-four-content">
-                <div class="metric-four-value" id="bugsCount">0</div>
                 <div class="metric-four-label">Bugs</div>
+                <div class="metric-four-value" id="bugsCount">0</div>
             </div>
         </div>
+
         <div class="metric-four-tile incident-tile">
             <div class="metric-four-icon incident-icon-wrap">
                 <img src="https://gargashjirabackup.blob.core.windows.net/logos/naar/incident.png"
-                     alt="Incident" class="incident-tile-img">
+                    alt="Incident" class="incident-tile-img">
             </div>
             <div class="metric-four-content">
-                <div class="metric-four-value" id="incidentsCount">0</div>
                 <div class="metric-four-label">Incidents</div>
+                <div class="metric-four-value" id="incidentsCount">0</div>
+            </div>
+        </div>
+
+        <div class="metric-four-tile testcycle-tile">
+            <div class="metric-four-icon"><i class="fas fa-vial"></i></div>
+            <div class="metric-four-content">
+                <div class="metric-four-label">Test Cycle</div>
+                <div class="metric-four-value" id="testCycleCount">0</div>
             </div>
         </div>
     </div>
@@ -152,16 +161,10 @@
             <div class="epic-table-header">
                 <div class="epic-table-title">
                     <i class="fas fa-layer-group"></i>
-                    Epics in Sprint
+                    Involved. Epics
                     <span class="count-badge" id="epicTableCount">0</span>
                 </div>
-                <div class="epic-table-actions">
-                    <div class="epic-add-col-wrap">
-                        <button id="epicAddColumnBtn" class="btn-add-column" title="Show/hide columns">
-                            <i class="fas fa-columns"></i> Columns
-                        </button>
-                        <div id="epicColumnMenu" class="epic-column-menu"></div>
-                    </div>
+                <div class="epic-table-actions">        
                     <div class="epic-search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="epicSearchInput" placeholder="Search epics…" autocomplete="off">
