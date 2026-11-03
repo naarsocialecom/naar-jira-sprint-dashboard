@@ -115,27 +115,42 @@
 .ndo-icon-btn.is-busy i { animation: spin 0.8s linear infinite; }
 
 /* Developer updates */
-.ndo-dev-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
-.ndo-dev-item {
-    position: relative; border: 1px solid #e3e6eb; border-left: 4px solid #8777d9;
-    border-radius: 10px; padding: 0.6rem 2rem 0.55rem 0.8rem; background: #fcfbff;
+.ndo-dev-list { list-style: none; position: relative; display: flex; flex-direction: column; }
+/* Timeline: time | dot on a rail | update */
+.ndo-tl {
+    position: relative; display: grid; grid-template-columns: 44px 14px minmax(0, 1fr);
+    column-gap: 0.6rem; padding: 0.5rem 1.6rem 0.5rem 0; border-bottom: 1px dashed #ebecf0;
 }
-.ndo-dev-text { font-size: 0.92rem; line-height: 1.5; color: #172b4d; word-break: break-word; }
+.ndo-tl:last-child { border-bottom: none; }
+.ndo-tl::before {   /* the rail */
+    content: ''; position: absolute; left: calc(44px + 0.6rem + 6px); top: 0; bottom: 0; width: 2px; background: #ebecf0;
+}
+.ndo-tl:first-child::before { top: 0.95rem; }
+.ndo-tl:last-child::before  { bottom: calc(100% - 0.95rem); }
+.ndo-tl-time { font-size: 0.74rem; color: #6b778c; font-variant-numeric: tabular-nums; padding-top: 0.18rem; text-align: right; }
+.ndo-tl-dot {
+    position: relative; z-index: 1; width: 14px; height: 14px; margin-top: 0.22rem; border-radius: 50%;
+    background: #fff; border: 3px solid #8777d9; box-shadow: 0 0 0 3px #fff;
+}
+.ndo-tl--done   .ndo-tl-dot { border-color: #36b37e; background: #36b37e; }
+.ndo-tl--active .ndo-tl-dot { border-color: #0065ff; }
+.ndo-tl--hold   .ndo-tl-dot { border-color: #ff991f; }
+.ndo-tl--todo   .ndo-tl-dot { border-color: #97a0af; }
+.ndo-tl-body { min-width: 0; }
+.ndo-tl-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.3rem; }
+.ndo-tag {
+    display: inline-flex; align-items: center; gap: 0.15rem; padding: 1px 8px; border-radius: 999px;
+    font-size: 0.7rem; color: #42526e; background: #f4f5f7; border: 1px solid #e3e6eb; text-decoration: none; white-space: nowrap;
+}
+.ndo-tag b { color: #0747a6; }
+.ndo-tag:hover { border-color: #b3bac5; }
+.ndo-tag--done   { background: #e3fcef; border-color: #abf5d1; }
+.ndo-tag--active { background: #deebff; border-color: #b3d4ff; }
+.ndo-tag--hold   { background: #fff4e5; border-color: #ffe2bd; }
+.ndo-tl-src { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: auto; font-size: 0.75rem; color: #8993a4; }
+.ndo-dev-text { font-size: 0.9rem; line-height: 1.45; color: #172b4d; word-break: break-word; }
 .ndo-dev-text a { color: #0747a6; font-weight: 700; text-decoration: none; }
 .ndo-dev-text a:hover { text-decoration: underline; }
-.ndo-dev-tickets { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.45rem; }
-.ndo-dev-ticket {
-    display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
-    background: #fff; border: 1px solid #ebecf0; border-radius: 8px; padding: 0.3rem 0.55rem; font-size: 0.8rem;
-}
-.ndo-dev-key { color: #0052cc; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.ndo-dev-key:hover { text-decoration: underline; }
-.ndo-dev-sum { flex: 1; min-width: 160px; color: #42526e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ndo-dev-meta-chips { display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
-.ndo-dev-meta-chips .status-pill { padding: 1px 8px; font-size: 0.7rem; }
-.ndo-dev-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.35rem; font-size: 0.75rem; color: #5e6c84; }
-.ndo-dev-foot .status-pill { padding: 1px 8px; font-size: 0.7rem; }
-.ndo-dev-foot b { color: #42526e; font-weight: 600; }
 .ndo-dev-ai { color: #5243aa; font-weight: 700; background: #eae6ff; border-radius: 4px; padding: 0 5px; }
 .ndo-dev-empty {
     display: flex; gap: 0.6rem; align-items: flex-start;
@@ -148,27 +163,42 @@
 }
 .ndo-note-del:hover { color: #de350b; }
 
-/* At a glance — one short point per topic */
-.ndo-glance { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
-.ndo-glance-item {
-    display: flex; gap: 0.65rem; align-items: flex-start;
-    border: 1px solid #ebecf0; border-left: 4px solid #c1c7d0; border-radius: 10px;
-    background: #fafbfc; padding: 0.55rem 0.75rem;
+/* Severity tiles */
+.ndo-sev-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.45rem; }
+.ndo-sev {
+    background: #f7f8fa; border-radius: 10px; padding: 0.5rem 0.3rem;
+    text-align: center; border-top: 4px solid #c1c7d0;
 }
-.ndo-glance-icon {
-    flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
-    background: #ebecf0; color: #42526e; font-size: 0.8rem;
+.ndo-sev b { display: block; font-size: 1.35rem; line-height: 1.1; }
+.ndo-sev span { font-size: 0.72rem; color: #42526e; font-weight: 600; }
+.ndo-sev.is-zero b { color: #a5adba; }
+.ndo-sev--Sev-0 { border-top-color: #bf2600; }
+.ndo-sev--Sev-1 { border-top-color: #ff5630; }
+.ndo-sev--Sev-2 { border-top-color: #ffab00; }
+.ndo-sev--Sev-3 { border-top-color: #4c9aff; }
+
+/* Priority bars */
+.ndo-bars { display: flex; flex-direction: column; gap: 0.45rem; }
+.ndo-bar-row { display: grid; grid-template-columns: 70px 1fr 34px; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
+.ndo-bar-label { font-weight: 600; color: #42526e; }
+.ndo-bar-track { height: 10px; background: #f0f1f4; border-radius: 999px; overflow: hidden; }
+.ndo-bar-fill { height: 100%; border-radius: 999px; background: #a5adba; }
+.ndo-bar--Critical, .ndo-bar--Highest { background: #de350b; }
+.ndo-bar--High   { background: #ff8b00; }
+.ndo-bar--Medium { background: #ffc400; }
+.ndo-bar--Low, .ndo-bar--Lowest { background: #36b37e; }
+.ndo-bar-value { text-align: right; font-weight: 700; }
+
+.ndo-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45rem; }
+.ndo-today-stat {
+    display: flex; align-items: baseline; gap: 0.45rem; background: #f7f8fa; border-radius: 10px;
+    padding: 0.55rem 0.7rem; border-left: 4px solid #c1c7d0;
 }
-.ndo-glance-title { font-size: 0.72rem; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.04em; }
-.ndo-glance-text { font-size: 0.88rem; line-height: 1.45; color: #172b4d; word-break: break-word; }
-.ndo-glance-text a { color: #0747a6; font-weight: 700; text-decoration: none; }
-.ndo-glance-text a:hover { text-decoration: underline; }
-.ndo-glance--red   { border-left-color: #de350b; }
-.ndo-glance--red   .ndo-glance-icon { background: #ffebe6; color: #bf2600; }
-.ndo-glance--amber { border-left-color: #ff991f; }
-.ndo-glance--amber .ndo-glance-icon { background: #fff4e5; color: #b65c02; }
-.ndo-glance--green { border-left-color: #36b37e; }
-.ndo-glance--green .ndo-glance-icon { background: #e3fcef; color: #006644; }
+.ndo-today-stat b { font-size: 1.3rem; line-height: 1; color: #172b4d; }
+.ndo-today-stat span { font-size: 0.74rem; color: #42526e; font-weight: 600; }
+.ndo-today--done   { border-left-color: #36b37e; }
+.ndo-today--active { border-left-color: #0065ff; }
+.ndo-today--hold   { border-left-color: #ff991f; }
 
 /* Chips */
 .ndo-chip {

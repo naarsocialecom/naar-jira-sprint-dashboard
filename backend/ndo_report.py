@@ -210,68 +210,6 @@ def build_highlights(tickets: List[Dict], now: datetime, stale_days: int) -> Lis
     return lines
 
 
-def _keys(tickets: List[Dict], limit: int = 3) -> str:
-    return ', '.join(t['key'] for t in tickets[:limit]) + (f' +{len(tickets) - limit} more' if len(tickets) > limit else '')
-
-
-def _breakdown(values: List[str], order: List[str]) -> str:
-    return ', '.join(f"{n} {k}" for k, n in _ordered_counts(Counter(values), order).items() if n)
-
-
-def glance_points(tickets: List[Dict], notes: List[Dict], now: datetime, stale_days: int,
-                  issue_types: List[str]) -> List[Dict]:
-    """'At a glance' as short labelled points; ticket keys in `text` are linked on the page."""
-    by_urgency = sorted(tickets, key=lambda t: (_urgency(t), t['created'] or ''))
-    points = []
-
-    incidents = [t for t in by_urgency if t['type'] == INCIDENT]
-    critical = [t for t in incidents if _is_critical(t)]
-    points.append({
-        'icon': 'fire-alt', 'tone': 'red' if critical else '', 'title': 'Incidents',
-        'text': (f"{len(incidents)} open — {_breakdown([t['severity'] for t in incidents], SEVERITY_ORDER)}"
-                 + (f". Most urgent: {_keys(critical)}" if critical else '')) if incidents else 'None open',
-    })
-    for type_name in [ty for ty in issue_types if ty != INCIDENT]:
-        group = [t for t in by_urgency if t['type'] == type_name]
-        if not group:
-            continue
-        urgent = [t for t in group if t['priority'] in URGENT_PRIORITIES]
-        points.append({
-            'icon': 'cogs', 'tone': 'amber' if urgent else '', 'title': type_name,
-            'text': f"{len(group)} open — {_breakdown([t['priority'] for t in group], PRIORITY_ORDER)}"
-                    + (f". Urgent: {_keys(urgent)}" if urgent else ''),
-        })
-
-    if tickets:
-        statuses = Counter(t['status'] for t in tickets).most_common()
-        points.append({'icon': 'tasks', 'tone': '', 'title': 'Where they stand',
-                       'text': ', '.join(f"{n} {s}" for s, n in statuses[:4])
-                               + (f", {sum(n for _, n in statuses[4:])} other" if len(statuses) > 4 else '')})
-
-    closed = [n['jira_key'] for n in notes if n.get('source') == 'jira' and n.get('jira_key')]
-    if closed:
-        points.append({'icon': 'check-circle', 'tone': 'green', 'title': 'Closed today',
-                       'text': f"{len(closed)} — {', '.join(closed[:4])}" + (f' +{len(closed) - 4} more' if len(closed) > 4 else '')})
-
-    new = [t for t in tickets if t['created'] and datetime.fromisoformat(t['created']) >= now - timedelta(days=1)]
-    points.append({'icon': 'plus-circle', 'tone': '', 'title': 'New in last 24h',
-                   'text': f"{len(new)} — {_keys(new, 4)}" if new else 'None'})
-
-    unassigned = [t for t in by_urgency if not t['assignee']]
-    if unassigned:
-        urgent = [t for t in unassigned if t['priority'] in URGENT_PRIORITIES or t['type'] == INCIDENT]
-        inc = sum(1 for t in unassigned if t['type'] == INCIDENT)
-        points.append({'icon': 'user-slash', 'tone': 'amber' if urgent else '', 'title': 'Unassigned',
-                       'text': f"{len(unassigned)}" + (f" (incl. {_plural(inc, 'incident')})" if inc else '')
-                               + (f". Urgent: {_keys(urgent)}" if urgent else '')})
-
-    stale = sorted((t for t in tickets if (t['idle_days'] or 0) >= stale_days), key=lambda t: -(t['idle_days'] or 0))
-    if stale:
-        points.append({'icon': 'hourglass-half', 'tone': '', 'title': f'Idle {stale_days}+ days',
-                       'text': f"{len(stale)} — longest {stale[0]['key']} ({stale[0]['idle_days']}d)"})
-    return points
-
-
 def key_tickets(tickets: List[Dict], limit: int = 15) -> List[Dict]:
     """Incidents and high-priority tickets, most severe first."""
     chosen = [t for t in tickets if t['type'] == INCIDENT or t['priority'] in URGENT_PRIORITIES]
@@ -354,7 +292,6 @@ def build_report(tickets: List[Dict], *, day: str, now: datetime, issue_types: L
             'reasons': auto_rag['reasons'],
         },
         'highlights': build_highlights(tickets, now, stale_days),
-        'glance': glance_points(tickets, notes or [], now, stale_days, types),
         'dev_updates': dev_updates(notes or [], {**{t['key']: t for t in tickets}, **(ticket_info or {})},
                                    jira_domain),
         'key_tickets': key_tickets(tickets),

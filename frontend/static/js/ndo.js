@@ -83,7 +83,7 @@ function render() {
     $('ndoRagReasons').innerHTML = rag.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('');
 
     renderDevUpdates();
-    renderGlance();
+    renderBreakdowns();
     renderSlackStatus();
     renderTypeFilter();
     renderTickets();
@@ -105,40 +105,69 @@ function renderDevUpdates() {
             <span><b>No developer updates yet today.</b> The ${escapeHtml(s.post_time)} Slack post is skipped until one is in.</span></li>`;
         return;
     }
+    // Compact timeline: time · status dot · one-line update · small ticket tags
     $('ndoDevUpdates').innerHTML = updates.map(u => {
-        // One line per ticket mentioned: what it is and where it stands in Jira right now
-        const tickets = (u.ticket_refs || []).map(r => `
-            <div class="ndo-dev-ticket">
-                <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener" class="ndo-dev-key">${escapeHtml(r.key)}</a>
-                ${r.summary ? `<span class="ndo-dev-sum" title="${escapeHtml(r.summary)}">${escapeHtml(r.summary)}</span>` : '<span class="ndo-dev-sum ndo-muted">Not found in Jira</span>'}
-                <span class="ndo-dev-meta-chips">
-                    ${r.status ? `<span class="status-pill ${getStatusClass(r.status)}">${escapeHtml(r.status)}</span>` : ''}
-                    ${r.priority ? chip(r.priority) : ''}
-                    ${r.severity ? chip(r.severity) : ''}
-                </span>
-            </div>`).join('');
+        const refs  = u.ticket_refs || [];
+        const state = ticketState(refs[0]?.status);
+        const tags  = refs.map(r => {
+            const level = r.severity || (URGENT.has(r.priority) ? r.priority : '');
+            const tip   = r.summary ? `${r.key} — ${r.summary}` : `${r.key} — not found in Jira`;
+            return `<a class="ndo-tag ndo-tag--${ticketState(r.status)}" href="${escapeHtml(r.url)}" target="_blank"
+                       rel="noopener" title="${escapeHtml(tip)}"><b>${escapeHtml(r.key)}</b>${r.status ? ` · ${escapeHtml(r.status)}` : ''}${level ? ` · ${escapeHtml(level)}` : ''}</a>`;
+        }).join('');
         // Jira briefs can hold customer details from the description, so only Slack/typed originals are shown
         const original = u.rephrased && u.raw_text && u.source !== 'jira' ? ` title="Original: ${escapeHtml(u.raw_text)}"` : '';
-        return `<li class="ndo-dev-item">
-            <div class="ndo-dev-text"${original}>${linkify(u.text)}</div>
-            ${tickets ? `<div class="ndo-dev-tickets">${tickets}</div>` : ''}
-            <div class="ndo-dev-foot">
-                <span>${timeLabel(u.created_at)}</span>
-                ${SOURCE_ICONS[u.source] || SOURCE_ICONS.dashboard}
-                ${u.rephrased ? '<span class="ndo-dev-ai" title="Rephrased by AI — hover the text for the original">AI</span>' : ''}
+        return `<li class="ndo-tl ndo-tl--${state}">
+            <span class="ndo-tl-time">${timeLabel(u.created_at)}</span>
+            <span class="ndo-tl-dot" aria-hidden="true"></span>
+            <div class="ndo-tl-body">
+                <div class="ndo-dev-text"${original}>${linkify(u.text)}</div>
+                <div class="ndo-tl-tags">${tags}
+                    <span class="ndo-tl-src">${SOURCE_ICONS[u.source] || SOURCE_ICONS.dashboard}${u.rephrased ? '<span class="ndo-dev-ai" title="Rephrased by AI">AI</span>' : ''}</span>
+                </div>
             </div>
             ${u.source === 'slack' || u.source === 'jira' ? '' : `<button class="ndo-note-del" data-id="${escapeHtml(u.id)}" title="Remove update" aria-label="Remove update"><i class="fas fa-times"></i></button>`}
         </li>`;
     }).join('');
 }
 
-function renderGlance() {
-    $('ndoGlance').innerHTML = (report.glance || []).map(g => `
-        <li class="ndo-glance-item${g.tone ? ` ndo-glance--${g.tone}` : ''}">
-            <span class="ndo-glance-icon"><i class="fas fa-${escapeHtml(g.icon)}"></i></span>
-            <div><div class="ndo-glance-title">${escapeHtml(g.title)}</div>
-                 <div class="ndo-glance-text">${linkify(g.text)}</div></div>
-        </li>`).join('');
+const URGENT = new Set(['Critical', 'Highest', 'High']);
+
+// done / active / hold / todo — drives the timeline dot and tag colours
+function ticketState(status) {
+    const cls = getStatusClass(status || '');
+    if (!status) return 'none';
+    if (cls === 'status-done' || cls === 'status-cancelled') return 'done';
+    if (cls === 'status-onhold' || cls === 'status-blocked') return 'hold';
+    if (cls === 'status-todo' || cls === 'status-backlog')   return 'todo';
+    return 'active';
+}
+
+function renderBreakdowns() {
+    // Today: closed (from tickets closed today) and how many open tickets are moving or stuck
+    const closed = (report.dev_updates || []).filter(u => u.source === 'jira').length;
+    const byState = { active: 0, hold: 0 };
+    Object.entries(report.breakdown.status).forEach(([status, byType]) => {
+        const st = ticketState(status);
+        if (st in byState) byState[st] += Object.values(byType).reduce((a, b) => a + b, 0);
+    });
+    $('ndoTodayStats').innerHTML = [
+        ['done', closed, 'Closed today'], ['active', byState.active, 'In progress'], ['hold', byState.hold, 'On hold'],
+    ].map(([cls, n, label]) => `<div class="ndo-today-stat ndo-today--${cls}"><b>${n}</b><span>${label}</span></div>`).join('');
+
+    $('ndoSeverity').innerHTML = Object.entries(report.breakdown.severity).map(([sev, n]) =>
+        `<div class="ndo-sev ndo-sev--${chipClass(sev)}${n ? '' : ' is-zero'}"><b>${n}</b><span>${escapeHtml(sev)}</span></div>`
+    ).join('');
+
+    const rows  = Object.entries(report.breakdown.priority)
+        .map(([name, byType]) => [name, Object.values(byType).reduce((a, b) => a + b, 0)]);
+    const total = rows.reduce((a, [, n]) => a + n, 0) || 1;
+    $('ndoPriorityBars').innerHTML = rows.map(([name, n]) => `
+        <div class="ndo-bar-row">
+            <span class="ndo-bar-label">${escapeHtml(name)}</span>
+            <div class="ndo-bar-track"><div class="ndo-bar-fill ndo-bar--${chipClass(name)}" style="width:${Math.max(2, n / total * 100).toFixed(1)}%"></div></div>
+            <span class="ndo-bar-value">${n}</span>
+        </div>`).join('');
 }
 
 function renderSlackStatus() {

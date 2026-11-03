@@ -25,11 +25,12 @@ PRIVACY_RULES = (
 
 SYSTEM_PROMPT = (
     "You rewrite developer status updates for a daily operations summary read by managers. "
-    "Rewrite the update as a brief, clear, professional sentence or two in past or present tense. "
+    "Rewrite it as one short, plain sentence of at most 18 words, in past or present tense — "
+    "the outcome or next step only, no filler like 'successfully' or 'as requested'. "
     "Keep every ticket key (like NDO-123) exactly as written. Keep numbers, dates and environments "
     "(staging, prod) exactly. " + PRIVACY_RULES +
     "Do not invent progress, causes or dates that are not in the update. "
-    "If the update covers several tickets, write one line per ticket. "
+    "If the update covers several tickets, write one such line per ticket. "
     "Reply with only the rewritten text — no preamble, no quotes, no markdown headings."
 )
 
@@ -37,10 +38,12 @@ CLOSED_TICKET_PROMPT = (
     "You write one brief line for a daily operations summary read by managers, about a Jira ticket that "
     "was closed today. You get the ticket's details: title, type, final status, description, today's status "
     "changes, and — only when they exist — comments and open follow-up tickets. "
-    "Write one or two short sentences, starting with the ticket's key and a colon (e.g. 'NDO-123: ...'). "
-    "Say what was resolved (or why it was rejected), based on the comments when there are any, otherwise "
-    "on the title and description. Only when an open follow-up ticket is listed, add what it covers (from "
-    "its title) with its key and status. Never remark on anything missing — no 'no comments', "
+    "Write ONE short sentence of at most 18 words, in this shape: 'NDO-123: <what was resolved>' and, "
+    "only when an open follow-up ticket is listed, '; follow-up NDO-456 (<its status>) on <topic in 3-5 words>'. "
+    "Start the text after the colon with a capital letter. "
+    "Example: 'NDO-101: Checkout timeout fixed; follow-up NDO-102 (To Do) on retry alerts.' "
+    "Base the outcome on the comments when there are any, otherwise on the title and description. "
+    "No filler like 'successfully' or 'as requested'. Never remark on anything missing — no 'no comments', "
     "'no linked tickets' or 'no follow-up'. " + PRIVACY_RULES +
     "Keep every ticket key (like NDO-123) exactly as written. Use only facts from the details — do not "
     "invent causes, fixes or dates. Reply with only the update text — no preamble, quotes, markdown or "
@@ -132,6 +135,8 @@ def rephrase(text: str, system_prompt: str = SYSTEM_PROMPT, fallback: str = None
         logger.warning(f"Rephrase failed, using fallback text: {e}")
         return fallback, False
     out = out.strip().strip('"').strip()
+    # 'NDO-12: a seller…' → 'NDO-12: A seller…'
+    out = re.sub(r'^((?:[A-Z][A-Z0-9]*-\d+(?:, )?)+: )([a-z])', lambda m: m.group(1) + m.group(2).upper(), out)
     # Never lose a ticket reference, even if the model dropped one: lead with it like "NDO-12: ..."
     missing = [k for k in ticket_keys(text) if k not in ticket_keys(out)]
     if missing:
