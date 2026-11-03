@@ -83,7 +83,7 @@ function render() {
     $('ndoRagReasons').innerHTML = rag.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('');
 
     renderDevUpdates();
-    renderBreakdowns();
+    renderGlance();
     renderSlackStatus();
     renderTypeFilter();
     renderTickets();
@@ -132,20 +132,13 @@ function renderDevUpdates() {
     }).join('');
 }
 
-function renderBreakdowns() {
-    $('ndoSeverity').innerHTML = Object.entries(report.breakdown.severity).map(([sev, n]) =>
-        `<div class="ndo-sev ndo-sev--${chipClass(sev)}${n ? '' : ' is-zero'}"><b>${n}</b><span>${escapeHtml(sev)}</span></div>`
-    ).join('');
-
-    const rows  = Object.entries(report.breakdown.priority)
-        .map(([name, byType]) => [name, Object.values(byType).reduce((a, b) => a + b, 0)]);
-    const total = rows.reduce((a, [, n]) => a + n, 0) || 1;
-    $('ndoPriorityBars').innerHTML = rows.map(([name, n]) => `
-        <div class="ndo-bar-row">
-            <span class="ndo-bar-label">${escapeHtml(name)}</span>
-            <div class="ndo-bar-track"><div class="ndo-bar-fill ndo-bar--${chipClass(name)}" style="width:${Math.max(2, n / total * 100).toFixed(1)}%"></div></div>
-            <span class="ndo-bar-value">${n}</span>
-        </div>`).join('');
+function renderGlance() {
+    $('ndoGlance').innerHTML = (report.glance || []).map(g => `
+        <li class="ndo-glance-item${g.tone ? ` ndo-glance--${g.tone}` : ''}">
+            <span class="ndo-glance-icon"><i class="fas fa-${escapeHtml(g.icon)}"></i></span>
+            <div><div class="ndo-glance-title">${escapeHtml(g.title)}</div>
+                 <div class="ndo-glance-text">${linkify(g.text)}</div></div>
+        </li>`).join('');
 }
 
 function renderSlackStatus() {

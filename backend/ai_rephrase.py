@@ -3,6 +3,7 @@ Rephrases a raw developer update (from Slack) into a crisp status line using
 the configured AI endpoint. If the endpoint is not configured or fails, the
 cleaned original text is returned, so the daily flow never blocks on AI.
 """
+import hashlib
 import logging
 import re
 from typing import List, Tuple
@@ -13,12 +14,20 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
+# Shared by both prompts: the summary goes to a wide channel, so no personal or customer details
+PRIVACY_RULES = (
+    "Privacy: never include names of people, sellers, stores, shops, brands or customers — not even when "
+    "they appear in the ticket title — write 'a seller' or 'a customer' instead (e.g. 'Address update - "
+    "Sunrise Textiles' becomes 'a seller's address was updated'). Never include street addresses, cities "
+    "or areas, phone numbers or email addresses. Product, system and service names (like AFS or live "
+    "stream) and order or ticket IDs may stay. "
+)
+
 SYSTEM_PROMPT = (
     "You rewrite developer status updates for a daily operations summary read by managers. "
     "Rewrite the update as a brief, clear, professional sentence or two in past or present tense. "
     "Keep every ticket key (like NDO-123) exactly as written. Keep numbers, dates and environments "
-    "(staging, prod) exactly. Never include names of people, sellers, stores, shops or customers — "
-    "write 'a seller' or 'a customer' instead; product, system and service names (like AFS) may stay. "
+    "(staging, prod) exactly. " + PRIVACY_RULES +
     "Do not invent progress, causes or dates that are not in the update. "
     "If the update covers several tickets, write one line per ticket. "
     "Reply with only the rewritten text — no preamble, no quotes, no markdown headings."
@@ -32,14 +41,16 @@ CLOSED_TICKET_PROMPT = (
     "Say what was resolved (or why it was rejected), based on the comments when there are any, otherwise "
     "on the title and description. Only when an open follow-up ticket is listed, add what it covers (from "
     "its title) with its key and status. Never remark on anything missing — no 'no comments', "
-    "'no linked tickets' or 'no follow-up'. "
-    "Never include names of people, sellers, stores, shops or customers — write 'a seller' or 'a customer' "
-    "instead (e.g. 'stream loading fixed for Sunrise Textiles' becomes 'stream loading fixed for a seller'). "
-    "Product, system and service names (like AFS or live stream) may stay. "
+    "'no linked tickets' or 'no follow-up'. " + PRIVACY_RULES +
     "Keep every ticket key (like NDO-123) exactly as written. Use only facts from the details — do not "
     "invent causes, fixes or dates. Reply with only the update text — no preamble, quotes, markdown or "
     "bullet points."
 )
+
+
+def prompt_id(system_prompt: str) -> str:
+    """Short fingerprint of a prompt, stored with each rephrased text so a prompt change re-rephrases it."""
+    return hashlib.sha1(system_prompt.encode('utf-8')).hexdigest()[:10]
 
 
 class AIError(RuntimeError):

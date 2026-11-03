@@ -148,31 +148,27 @@
 }
 .ndo-note-del:hover { color: #de350b; }
 
-/* Severity tiles */
-.ndo-sev-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.45rem; }
-.ndo-sev {
-    background: #f7f8fa; border-radius: 10px; padding: 0.5rem 0.3rem;
-    text-align: center; border-top: 4px solid #c1c7d0;
+/* At a glance — one short point per topic */
+.ndo-glance { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.ndo-glance-item {
+    display: flex; gap: 0.65rem; align-items: flex-start;
+    border: 1px solid #ebecf0; border-left: 4px solid #c1c7d0; border-radius: 10px;
+    background: #fafbfc; padding: 0.55rem 0.75rem;
 }
-.ndo-sev b { display: block; font-size: 1.35rem; line-height: 1.1; }
-.ndo-sev span { font-size: 0.72rem; color: #42526e; font-weight: 600; }
-.ndo-sev.is-zero b { color: #a5adba; }
-.ndo-sev--Sev-0 { border-top-color: #bf2600; }
-.ndo-sev--Sev-1 { border-top-color: #ff5630; }
-.ndo-sev--Sev-2 { border-top-color: #ffab00; }
-.ndo-sev--Sev-3 { border-top-color: #4c9aff; }
-
-/* Priority bars */
-.ndo-bars { display: flex; flex-direction: column; gap: 0.45rem; }
-.ndo-bar-row { display: grid; grid-template-columns: 70px 1fr 34px; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
-.ndo-bar-label { font-weight: 600; color: #42526e; }
-.ndo-bar-track { height: 10px; background: #f0f1f4; border-radius: 999px; overflow: hidden; }
-.ndo-bar-fill { height: 100%; border-radius: 999px; background: #a5adba; }
-.ndo-bar--Critical, .ndo-bar--Highest { background: #de350b; }
-.ndo-bar--High   { background: #ff8b00; }
-.ndo-bar--Medium { background: #ffc400; }
-.ndo-bar--Low, .ndo-bar--Lowest { background: #36b37e; }
-.ndo-bar-value { text-align: right; font-weight: 700; }
+.ndo-glance-icon {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+    background: #ebecf0; color: #42526e; font-size: 0.8rem;
+}
+.ndo-glance-title { font-size: 0.72rem; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.04em; }
+.ndo-glance-text { font-size: 0.88rem; line-height: 1.45; color: #172b4d; word-break: break-word; }
+.ndo-glance-text a { color: #0747a6; font-weight: 700; text-decoration: none; }
+.ndo-glance-text a:hover { text-decoration: underline; }
+.ndo-glance--red   { border-left-color: #de350b; }
+.ndo-glance--red   .ndo-glance-icon { background: #ffebe6; color: #bf2600; }
+.ndo-glance--amber { border-left-color: #ff991f; }
+.ndo-glance--amber .ndo-glance-icon { background: #fff4e5; color: #b65c02; }
+.ndo-glance--green { border-left-color: #36b37e; }
+.ndo-glance--green .ndo-glance-icon { background: #e3fcef; color: #006644; }
 
 /* Chips */
 .ndo-chip {

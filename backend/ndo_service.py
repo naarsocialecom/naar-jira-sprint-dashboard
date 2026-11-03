@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple
 
 from zoneinfo import ZoneInfo
 
-from ai_rephrase import CLOSED_TICKET_PROMPT, rephrase, ticket_keys
+from ai_rephrase import CLOSED_TICKET_PROMPT, SYSTEM_PROMPT, prompt_id, rephrase, ticket_keys
 from config import Config
 from dashboard_snapshot import SnapshotError, capture_dashboard
 from jira_apis import JiraClient
@@ -187,7 +187,7 @@ class NdoService:
                 if not raw:
                     continue
                 old = previous.get(msg['ts'])
-                if old and old.get('raw_text') == raw:
+                if old and old.get('raw_text') == raw and old.get('prompt_id') == prompt_id(SYSTEM_PROMPT):
                     text, rephrased = old['text'], old.get('rephrased', False)   # unchanged: no new AI call
                 else:
                     text, rephrased = rephrase(raw)
@@ -196,6 +196,7 @@ class NdoService:
                     'raw_text': raw,
                     'text': text,
                     'rephrased': rephrased,
+                    'prompt_id': prompt_id(SYSTEM_PROMPT),
                     'author': slack.user_name(msg['user']) if msg.get('user') else '',
                     'tickets': ticket_keys(raw),
                     'posted_at': datetime.fromtimestamp(float(msg['ts']), timezone.utc).isoformat(timespec='seconds'),
@@ -276,7 +277,7 @@ class NdoService:
                 f = issue['fields']
                 brief, fallback = self._closed_ticket_brief(issue, start)
                 old = previous.get(key)
-                if old and old.get('raw_text') == brief:
+                if old and old.get('raw_text') == brief and old.get('prompt_id') == prompt_id(CLOSED_TICKET_PROMPT):
                     text, rephrased = old['text'], old.get('rephrased', False)   # unchanged: no new AI call
                 else:
                     text, rephrased = rephrase(brief, CLOSED_TICKET_PROMPT, fallback)
@@ -286,6 +287,7 @@ class NdoService:
                     'raw_text': brief,
                     'text': text,
                     'rephrased': rephrased,
+                    'prompt_id': prompt_id(CLOSED_TICKET_PROMPT),
                     'author': (f.get('assignee') or {}).get('displayName', ''),
                     'tickets': list(dict.fromkeys([key, *ticket_keys(brief)])),
                     'posted_at': closed_at.isoformat(timespec='seconds'),
