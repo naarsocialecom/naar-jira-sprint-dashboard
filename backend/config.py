@@ -92,6 +92,8 @@ class Config:
 
     # Slack (optional — Slack features are disabled until token + summary channel are set)
     SLACK_BOT_TOKEN = _get('SLACK_BOT_TOKEN')
+    # Name shown on the bot's messages (needs the chat:write.customize scope). Blank = bot profile name
+    SLACK_BOT_NAME = _get('SLACK_BOT_NAME')
     # Channel the daily summary is posted to
     SLACK_CHANNEL_ID = _get('SLACK_CHANNEL_ID')
     # Channel developers post their updates in (read + rephrased into "Developer Updates")

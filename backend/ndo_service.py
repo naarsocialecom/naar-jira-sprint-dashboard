@@ -399,12 +399,19 @@ class NdoService:
                     'message': "Today's update was already posted (use force to post again)."}
         try:
             report = self.report(refresh=True)
-            slack.upload_image(
-                self.slack_image(report),
-                filename=f"ndo-daily-{day}.png",
-                title=f"Naar Data Operations · {report['date_label']}",
-                initial_comment=slack_text(report),
-            )
+            png = self.slack_image(report)
+            filename = f"ndo-daily-{day}.png"
+            title = f"Naar Data Operations · {report['date_label']}"
+            posted = False
+            if Config.SLACK_BOT_NAME:
+                try:
+                    slack.post_image_message(png, filename, title, slack_text(report))
+                    posted = True
+                except SlackError as e:
+                    # Nothing reached the channel; fall back to a plain file share (bot's profile name)
+                    logger.warning(f"Named image post failed, sharing the file instead: {e}")
+            if not posted:
+                slack.upload_image(png, filename=filename, title=title, initial_comment=slack_text(report))
         except Exception:
             self.store.release_daily_post(day)
             raise

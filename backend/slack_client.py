@@ -6,10 +6,12 @@ Required bot scopes:
   files:write        upload the snapshot image
   channels:history   read the developer updates channel (groups:history for private channels)
   users:read         show developer names instead of user IDs (optional)
+  chat:write.customize  post under SLACK_BOT_NAME instead of the bot's profile name (optional)
 """
 import html
 import logging
 import re
+import time
 from typing import Dict, List, Optional
 
 import requests
@@ -68,19 +70,49 @@ class SlackClient:
             payload['blocks'] = blocks
         if thread_ts:
             payload['thread_ts'] = thread_ts
+        # Slack keeps showing the bot's first-install profile name; a per-message name always wins
+        if Config.SLACK_BOT_NAME:
+            try:
+                return self._call('chat.postMessage', json={**payload, 'username': Config.SLACK_BOT_NAME})
+            except SlackError as e:
+                if e.code != 'missing_scope':
+                    raise
+                logger.warning("SLACK_BOT_NAME needs the chat:write.customize scope — posting under the default bot name")
         return self._call('chat.postMessage', json=payload)
 
-    def upload_image(self, png: bytes, filename: str, title: str, initial_comment: str = '',
-                     thread_ts: str = None) -> Dict:
-        """Upload a PNG into the channel using the external upload flow."""
+    def _upload(self, png: bytes, filename: str) -> str:
         ticket = self._call('files.getUploadURLExternal', data={'filename': filename, 'length': len(png)})
         try:
             put = requests.post(ticket['upload_url'], files={'file': (filename, png, 'image/png')}, timeout=60)
             put.raise_for_status()
         except requests.RequestException as e:
             raise SlackError('upload_failed', str(e))
+        return ticket['file_id']
+
+    def post_image_message(self, png: bytes, filename: str, title: str, text: str) -> Dict:
+        """
+        One message with the text and the image, sent through chat.postMessage so SLACK_BOT_NAME
+        applies (a plain file share always shows the bot's profile name).
+        """
+        file_id = self._upload(png, filename)
+        self._call('files.completeUploadExternal', json={'files': [{'id': file_id, 'title': title}]})
+        chunks = [text[i:i + 2900] for i in range(0, len(text), 2900)] or [title]
+        blocks = [{'type': 'section', 'text': {'type': 'mrkdwn', 'text': c}} for c in chunks]
+        blocks.append({'type': 'image', 'slack_file': {'id': file_id}, 'alt_text': title})
+        for attempt in range(4):
+            try:
+                return self.post_message(text, blocks=blocks)
+            except SlackError as e:
+                # The uploaded file can take a moment to be processed before a block may show it
+                if e.code != 'invalid_blocks' or attempt == 3:
+                    raise
+                time.sleep(2)
+
+    def upload_image(self, png: bytes, filename: str, title: str, initial_comment: str = '',
+                     thread_ts: str = None) -> Dict:
+        """Upload a PNG into the channel using the external upload flow."""
         complete = {
-            'files': [{'id': ticket['file_id'], 'title': title}],
+            'files': [{'id': self._upload(png, filename), 'title': title}],
             'channel_id': self.channel_id,
         }
         if initial_comment:

@@ -16,6 +16,7 @@ oauth_config:
       - channels:history    # read developer updates (public channels)
       - groups:history      # read developer updates (private channels)
       - users:read          # show developer names instead of user IDs
+      - chat:write.customize  # post under SLACK_BOT_NAME
 settings:
   org_deploy_enabled: false
   socket_mode_enabled: false
