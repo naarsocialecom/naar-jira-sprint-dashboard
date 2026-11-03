@@ -117,7 +117,8 @@ function renderDevUpdates() {
                     ${r.severity ? chip(r.severity) : ''}
                 </span>
             </div>`).join('');
-        const original = u.rephrased && u.raw_text ? ` title="Original: ${escapeHtml(u.raw_text)}"` : '';
+        // Jira briefs can hold customer details from the description, so only Slack/typed originals are shown
+        const original = u.rephrased && u.raw_text && u.source !== 'jira' ? ` title="Original: ${escapeHtml(u.raw_text)}"` : '';
         return `<li class="ndo-dev-item">
             <div class="ndo-dev-text"${original}>${linkify(u.text)}</div>
             ${tickets ? `<div class="ndo-dev-tickets">${tickets}</div>` : ''}

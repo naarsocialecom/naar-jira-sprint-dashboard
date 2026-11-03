@@ -25,11 +25,14 @@ SYSTEM_PROMPT = (
 )
 
 CLOSED_TICKET_PROMPT = (
-    "You write one brief entry for a daily operations summary read by managers, about a Jira ticket that "
+    "You write one brief line for a daily operations summary read by managers, about a Jira ticket that "
     "was closed today. You get the ticket's details: title, type, final status, description, today's status "
-    "changes, comments and linked tickets. Write at most two short sentences: what was resolved (or why it "
-    "was rejected), treating the comments as the main source of truth; then, if any linked ticket is still "
-    "open, the follow-up by its key and status. "
+    "changes, and — only when they exist — comments and open follow-up tickets. "
+    "Write one or two short sentences, starting with the ticket's key and a colon (e.g. 'NDO-123: ...'). "
+    "Say what was resolved (or why it was rejected), based on the comments when there are any, otherwise "
+    "on the title and description. Only when an open follow-up ticket is listed, add what it covers (from "
+    "its title) with its key and status. Never remark on anything missing — no 'no comments', "
+    "'no linked tickets' or 'no follow-up'. "
     "Never include names of people, sellers, stores, shops or customers — write 'a seller' or 'a customer' "
     "instead (e.g. 'stream loading fixed for Sunrise Textiles' becomes 'stream loading fixed for a seller'). "
     "Product, system and service names (like AFS or live stream) may stay. "
@@ -118,8 +121,8 @@ def rephrase(text: str, system_prompt: str = SYSTEM_PROMPT, fallback: str = None
         logger.warning(f"Rephrase failed, using fallback text: {e}")
         return fallback, False
     out = out.strip().strip('"').strip()
-    # Never lose a ticket reference, even if the model dropped one
+    # Never lose a ticket reference, even if the model dropped one: lead with it like "NDO-12: ..."
     missing = [k for k in ticket_keys(text) if k not in ticket_keys(out)]
     if missing:
-        out = f"{out} ({', '.join(missing)})"
+        out = f"{', '.join(missing)}: {out}"
     return out, True

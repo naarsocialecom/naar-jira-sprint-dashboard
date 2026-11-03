@@ -237,23 +237,20 @@ class NdoService:
             body = clean(adf_text(c.get('body')))
             if body:
                 lines.append(f"Comment: {body}")
-        if not comments:
-            lines.append('Comments: none')
 
+        # Only linked tickets / sub-tasks that are still open count as follow-up work
+        linked = [link.get('outwardIssue') or link.get('inwardIssue') for link in f.get('issuelinks') or []]
         follow_ups = []
-        related = [(link['type']['outward' if link.get('outwardIssue') else 'inward'],
-                    link.get('outwardIssue') or link.get('inwardIssue')) for link in f.get('issuelinks') or []]
-        related += [('has sub-task', sub) for sub in f.get('subtasks') or []]
-        for relation, other in related:
-            if not other:
+        for other in filter(None, linked + list(f.get('subtasks') or [])):
+            fields = other.get('fields') or {}
+            other_status = fields.get('status') or {}
+            if (other_status.get('statusCategory') or {}).get('key') == 'done':
                 continue
-            other_status = (other.get('fields') or {}).get('status') or {}
-            lines.append(f"Linked: {key} {relation} {other['key']} "
-                         f"\"{(other.get('fields') or {}).get('summary', '')}\" — status {other_status.get('name', '?')}")
-            if (other_status.get('statusCategory') or {}).get('key') != 'done':
-                follow_ups.append(f"{other['key']} ({other_status.get('name', 'open')})")
+            lines.append(f"Open follow-up ticket: {other['key']} \"{fields.get('summary', '')}\" — "
+                         f"status {other_status.get('name', 'open')}")
+            follow_ups.append(f"{other['key']} ({other_status.get('name', 'open')})")
 
-        fallback = f"{key} closed as {status}: {summary}." + (
+        fallback = f"{key}: closed as {status} — {summary}." + (
             f" Follow-up: {', '.join(follow_ups)}." if follow_ups else '')
         return '\n'.join(lines), fallback
 
