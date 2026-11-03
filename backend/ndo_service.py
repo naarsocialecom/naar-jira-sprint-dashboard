@@ -14,11 +14,11 @@ import logging
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from zoneinfo import ZoneInfo
 
-from ai_rephrase import rephrase, ticket_keys
+from ai_rephrase import CLOSED_TICKET_PROMPT, rephrase, ticket_keys
 from config import Config
 from dashboard_snapshot import SnapshotError, capture_dashboard
 from jira_apis import JiraClient
@@ -30,6 +30,8 @@ from slack_client import SlackClient, SlackError
 logger = logging.getLogger(__name__)
 
 TICKET_FIELDS = ['issuetype', 'status', 'priority', 'summary', 'assignee', 'created', 'updated']
+CLOSED_TICKET_FIELDS = ['issuetype', 'status', 'summary', 'assignee', 'description', 'comment',
+                        'issuelinks', 'subtasks', 'statuscategorychangedate']
 
 
 class SlackNotConfigured(RuntimeError):
@@ -203,6 +205,59 @@ class NdoService:
             self.store.set_value(day, 'dev_sync_error', None)
             return {**result, 'total': len(synced)}
 
+    @staticmethod
+    def _closed_ticket_brief(issue: Dict, start: datetime) -> Tuple[str, str]:
+        """What the AI needs to describe a ticket closed today, plus a plain one-line fallback."""
+        f = issue['fields']
+        key, status, summary = issue['key'], f['status']['name'], f.get('summary') or ''
+
+        def today(value) -> bool:
+            dt = _parse_dt(value)
+            return bool(dt and dt >= start)
+
+        def clean(text: str, limit: int = 400) -> str:
+            text = ' '.join(text.split())
+            return text if len(text) <= limit else text[:limit].rstrip() + '…'
+
+        lines = [f"Ticket: {key} ({f['issuetype']['name']}) — {summary}",
+                 f"Final status today: {status}"
+                 + (f" · assignee {f['assignee']['displayName']}" if f.get('assignee') else '')]
+        description = clean(adf_text(f.get('description')))
+        if description:
+            lines.append(f"Description: {description}")
+
+        trail = sorted((h['created'], item.get('toString') or '')
+                       for h in (issue.get('changelog') or {}).get('histories', []) if today(h.get('created'))
+                       for item in h.get('items', []) if item.get('field') == 'status')
+        if trail:
+            lines.append('Status changes today: ' + ' → '.join(s for _, s in trail))
+
+        comments = (f.get('comment') or {}).get('comments') or []
+        # Today's comments; if nobody commented today, the last few still explain the close
+        for c in [c for c in comments if today(c.get('created'))] or comments[-3:]:
+            body = clean(adf_text(c.get('body')))
+            if body:
+                lines.append(f"Comment by {(c.get('author') or {}).get('displayName', 'someone')}: {body}")
+        if not comments:
+            lines.append('Comments: none')
+
+        follow_ups = []
+        related = [(link['type']['outward' if link.get('outwardIssue') else 'inward'],
+                    link.get('outwardIssue') or link.get('inwardIssue')) for link in f.get('issuelinks') or []]
+        related += [('has sub-task', sub) for sub in f.get('subtasks') or []]
+        for relation, other in related:
+            if not other:
+                continue
+            other_status = (other.get('fields') or {}).get('status') or {}
+            lines.append(f"Linked: {key} {relation} {other['key']} "
+                         f"\"{(other.get('fields') or {}).get('summary', '')}\" — status {other_status.get('name', '?')}")
+            if (other_status.get('statusCategory') or {}).get('key') != 'done':
+                follow_ups.append(f"{other['key']} ({other_status.get('name', 'open')})")
+
+        fallback = f"{key} closed as {status}: {summary}." + (
+            f" Follow-up: {', '.join(follow_ups)}." if follow_ups else '')
+        return '\n'.join(lines), fallback
+
     def sync_closed_tickets(self) -> Dict:
         """Tickets closed (Done / Rejected) today → updates written from the summary and today's comments."""
         day, start = self.today(), self.start_of_today()
@@ -214,39 +269,29 @@ class NdoService:
             'updated >= -25h',
         ]))
 
-        def since_start(value) -> bool:
-            dt = _parse_dt(value)
-            return bool(dt and dt >= start)
-
         with self._sync_lock:
-            issues = self.jira.search_issues(
-                jql, ['summary', 'status', 'assignee', 'statuscategorychangedate', 'comment'])
+            candidates = self.jira.search_issues(jql, ['statuscategorychangedate'])
+            closed = [i['key'] for i in candidates
+                      if (_parse_dt(i['fields'].get('statuscategorychangedate')) or start) > start]
             previous = {n['jira_key']: n for n in self.store.notes(day) if n.get('source') == 'jira'}
             items = []
-            for issue in issues:
+            for key in closed:
+                issue = self.jira.get_issue(key, CLOSED_TICKET_FIELDS, expand='changelog')
                 f = issue['fields']
-                if not since_start(f.get('statuscategorychangedate')):
-                    continue
-                comments = (f.get('comment') or {}).get('comments') or []
-                # Today's comments; if nobody commented today, the latest one usually explains the close
-                picked = [c for c in comments if since_start(c.get('created'))] or comments[-1:]
-                comment_text = ' | '.join(filter(None, (' '.join(adf_text(c.get('body')).split()) for c in picked)))
-                raw = f"{issue['key']} moved to {f['status']['name']}: {f.get('summary') or ''}".strip()
-                if comment_text:
-                    raw += f". Comments: {comment_text[:1500]}"
-                old = previous.get(issue['key'])
-                if old and old.get('raw_text') == raw:
+                brief, fallback = self._closed_ticket_brief(issue, start)
+                old = previous.get(key)
+                if old and old.get('raw_text') == brief:
                     text, rephrased = old['text'], old.get('rephrased', False)   # unchanged: no new AI call
                 else:
-                    text, rephrased = rephrase(raw)
+                    text, rephrased = rephrase(brief, CLOSED_TICKET_PROMPT, fallback)
                 closed_at = _parse_dt(f['statuscategorychangedate']).astimezone(timezone.utc)
                 items.append({
-                    'jira_key': issue['key'],
-                    'raw_text': raw,
+                    'jira_key': key,
+                    'raw_text': brief,
                     'text': text,
                     'rephrased': rephrased,
                     'author': (f.get('assignee') or {}).get('displayName', ''),
-                    'tickets': list(dict.fromkeys([issue['key'], *ticket_keys(raw)])),
+                    'tickets': list(dict.fromkeys([key, *ticket_keys(brief)])),
                     'posted_at': closed_at.isoformat(timespec='seconds'),
                 })
             result = self.store.sync_jira_notes(day, items)

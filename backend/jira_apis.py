@@ -174,6 +174,13 @@ class JiraClient:
             logger.error(f"Failed to fetch highlights ticket {ticket_key}: {e}")
             return {}
 
+    def get_issue(self, key: str, fields: List[str], expand: str = '') -> Dict:
+        """One issue (REST v3), optionally with e.g. expand='changelog'."""
+        params = {'fields': ','.join(fields)}
+        if expand:
+            params['expand'] = expand
+        return self._make_request('GET', f'/rest/api/3/issue/{key}', params)
+
     def search_issues(self, jql: str, fields: List[str], page_size: int = 100, max_issues: int = 2000) -> List[Dict]:
         """
         Run a JQL search and return every matching issue.

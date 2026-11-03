@@ -22,6 +22,17 @@ SYSTEM_PROMPT = (
     "Reply with only the rewritten text — no preamble, no quotes, no markdown headings."
 )
 
+CLOSED_TICKET_PROMPT = (
+    "You write one entry for a daily operations summary read by managers, about a Jira ticket that was "
+    "closed today. You get the ticket's details: title, type, final status, description, today's status "
+    "changes, comments and linked tickets. Write one to three short, clear sentences: first what was "
+    "resolved (or why it was rejected), treating the comments as the main source of truth; then any "
+    "follow-up work, naming each linked ticket that is still open by its key, what it covers and its status. "
+    "Keep every ticket key (like NDO-123) exactly as written. Use only facts from the details — do not "
+    "invent causes, fixes, dates or people. If there are no comments, say only what the title, status and "
+    "links support. Reply with only the update text — no preamble, quotes, markdown or bullet points."
+)
+
 
 class AIError(RuntimeError):
     pass
@@ -50,7 +61,7 @@ def _dig(data, path: str):
     return data
 
 
-def _call_endpoint(text: str) -> str:
+def _call_endpoint(text: str, system_prompt: str) -> str:
     headers = {'Content-Type': 'application/json'}
     if Config.AI_API_KEY:
         prefix = f"{Config.AI_AUTH_PREFIX} " if Config.AI_AUTH_PREFIX else ''
@@ -59,7 +70,7 @@ def _call_endpoint(text: str) -> str:
     if Config.AI_API_FORMAT == 'openai_chat':
         body = {
             'messages': [
-                {'role': 'system', 'content': SYSTEM_PROMPT},
+                {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': text},
             ],
         }
@@ -67,7 +78,7 @@ def _call_endpoint(text: str) -> str:
             body['model'] = Config.AI_MODEL
         path = 'choices.0.message.content'
     elif Config.AI_API_FORMAT == 'simple':
-        body = {'system': SYSTEM_PROMPT, 'prompt': text}
+        body = {'system': system_prompt, 'prompt': text}
         if Config.AI_MODEL:
             body['model'] = Config.AI_MODEL
         path = Config.AI_RESPONSE_FIELD
@@ -87,16 +98,20 @@ def _call_endpoint(text: str) -> str:
     return out.strip()
 
 
-def rephrase(text: str) -> Tuple[str, bool]:
-    """Returns (text, rephrased). Falls back to the original text on any failure."""
+def rephrase(text: str, system_prompt: str = SYSTEM_PROMPT, fallback: str = None) -> Tuple[str, bool]:
+    """
+    Returns (text, rephrased). Falls back to `fallback` (default: the original text)
+    when AI is off or fails.
+    """
     text = text.strip()
+    fallback = (fallback or text).strip()
     if not Config.ai_enabled() or len(text) < 3:
-        return text, False
+        return fallback, False
     try:
-        out = _call_endpoint(text)
+        out = _call_endpoint(text, system_prompt)
     except AIError as e:
-        logger.warning(f"Rephrase failed, using original text: {e}")
-        return text, False
+        logger.warning(f"Rephrase failed, using fallback text: {e}")
+        return fallback, False
     out = out.strip().strip('"').strip()
     # Never lose a ticket reference, even if the model dropped one
     missing = [k for k in ticket_keys(text) if k not in ticket_keys(out)]
