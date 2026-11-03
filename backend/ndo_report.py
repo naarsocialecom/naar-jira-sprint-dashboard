@@ -341,8 +341,7 @@ def slack_text(report: Dict) -> str:
                 status = ' · _' + ', '.join(f"{r['key']} {r['status']}" for r in refs) + '_'
             else:
                 status = ''
-            author = f" — {_slack_escape(note['author'])}" if note.get('author') else ''
-            lines.append(f"• {_slack_rich(note['text'], report)}{status}{author}")
+            lines.append(f"• {_slack_rich(note['text'], report)}{status}")
 
     critical = [t for t in report['key_tickets'] if _urgency(t) == 0]
     if critical:

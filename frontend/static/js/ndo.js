@@ -94,13 +94,11 @@ function renderDevUpdates() {
     const s       = report.slack;
     $('ndoDevCount').textContent = updates.length;
 
+    // Only problems are shown here; a healthy sync stays quiet
     const meta = $('ndoDevMeta');
-    let metaText = '', warn = false;
-    if (s.dev_sync_error)                       { metaText = `Slack: ${s.dev_sync_error}`; warn = true; }
-    else if (!s.enabled || !s.dev_channel_id)   { metaText = 'Slack updates channel not connected'; warn = true; }
-    else if (s.dev_synced_at)                   { metaText = `Slack · ${timeLabel(s.dev_synced_at)}${s.ai_enabled ? ' · AI rephrased' : ''}`; }
-    meta.textContent = metaText;
-    meta.className   = `ndo-panel-meta${warn ? ' ndo-panel-meta--warn' : ''}`;
+    meta.textContent = s.dev_sync_error ? `Slack: ${s.dev_sync_error}`
+        : (!s.enabled || !s.dev_channel_id) ? 'Slack updates channel not connected' : '';
+    meta.className   = 'ndo-panel-meta ndo-panel-meta--warn';
 
     if (!updates.length) {
         $('ndoDevUpdates').innerHTML = `<li class="ndo-dev-empty"><i class="fas fa-hourglass-half"></i>
@@ -117,7 +115,6 @@ function renderDevUpdates() {
                     ${r.status ? `<span class="status-pill ${getStatusClass(r.status)}">${escapeHtml(r.status)}</span>` : ''}
                     ${r.priority ? chip(r.priority) : ''}
                     ${r.severity ? chip(r.severity) : ''}
-                    ${r.summary ? `<span class="ndo-dev-owner">${r.assignee ? escapeHtml(r.assignee) : '<span class="ndo-unassigned">Unassigned</span>'}</span>` : ''}
                 </span>
             </div>`).join('');
         const original = u.rephrased && u.raw_text ? ` title="Original: ${escapeHtml(u.raw_text)}"` : '';
@@ -125,7 +122,7 @@ function renderDevUpdates() {
             <div class="ndo-dev-text"${original}>${linkify(u.text)}</div>
             ${tickets ? `<div class="ndo-dev-tickets">${tickets}</div>` : ''}
             <div class="ndo-dev-foot">
-                <span>${u.author ? `<b>${escapeHtml(u.author)}</b> · ` : ''}${timeLabel(u.created_at)}</span>
+                <span>${timeLabel(u.created_at)}</span>
                 ${SOURCE_ICONS[u.source] || SOURCE_ICONS.dashboard}
                 ${u.rephrased ? '<span class="ndo-dev-ai" title="Rephrased by AI — hover the text for the original">AI</span>' : ''}
             </div>

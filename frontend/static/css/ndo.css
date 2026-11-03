@@ -133,7 +133,6 @@
 .ndo-dev-sum { flex: 1; min-width: 160px; color: #42526e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ndo-dev-meta-chips { display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .ndo-dev-meta-chips .status-pill { padding: 1px 8px; font-size: 0.7rem; }
-.ndo-dev-owner { color: #42526e; font-size: 0.76rem; }
 .ndo-dev-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.35rem; font-size: 0.75rem; color: #5e6c84; }
 .ndo-dev-foot .status-pill { padding: 1px 8px; font-size: 0.7rem; }
 .ndo-dev-foot b { color: #42526e; font-weight: 600; }

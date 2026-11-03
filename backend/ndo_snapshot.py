@@ -141,7 +141,7 @@ def render_snapshot(report: Dict) -> bytes:
     updates = report.get('dev_updates') or []
     if updates:
         more = f"  (+{len(updates) - 2} more)" if len(updates) > 2 else ''
-        summary_lines = [f"{u['text']}" + (f" — {u['author']}" if u.get('author') else '') for u in updates[:2]]
+        summary_lines = [u['text'] for u in updates[:2]]
         summary_lines[-1] += more
     else:
         summary_lines = report['highlights'][:2]
