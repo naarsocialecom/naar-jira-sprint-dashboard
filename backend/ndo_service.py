@@ -46,6 +46,8 @@ class NdoService:
         self.store = store or NdoStore()
         self.tz = ZoneInfo(Config.REPORT_TIMEZONE)
         self._cache: Dict = {'at': 0.0, 'tickets': None}
+        # Touched on every forced refresh so all gunicorn workers drop their cached tickets
+        self._refresh_stamp = self.store.data_dir / 'ndo-refresh.stamp'
         self._lock = threading.Lock()
         self._sync_lock = threading.Lock()
         self._shot_lock = threading.Lock()
@@ -71,9 +73,24 @@ class NdoService:
             parts.append(f'status not in ({_jql_list(Config.NDO_EXCLUDED_STATUSES)})')
         return ' AND '.join(parts) + ' ORDER BY priority DESC, created DESC'
 
+    def _last_forced_refresh(self) -> float:
+        try:
+            return self._refresh_stamp.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def _mark_forced_refresh(self) -> None:
+        try:
+            self._refresh_stamp.touch()
+        except OSError as e:
+            logger.warning(f"Could not write refresh stamp: {e}")
+
     def tickets(self, refresh: bool = False) -> List[Dict]:
         with self._lock:
-            fresh = time.time() - self._cache['at'] < Config.NDO_CACHE_SECONDS
+            if refresh:
+                self._mark_forced_refresh()
+            fresh = (time.time() - self._cache['at'] < Config.NDO_CACHE_SECONDS
+                     and self._cache['at'] > self._last_forced_refresh())
             if self._cache['tickets'] is not None and fresh and not refresh:
                 return self._cache['tickets']
             fields = TICKET_FIELDS + ([Config.JIRA_FIELD_SEVERITY] if Config.JIRA_FIELD_SEVERITY else [])
