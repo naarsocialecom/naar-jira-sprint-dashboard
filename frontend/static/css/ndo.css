@@ -1,0 +1,319 @@
+/* ============================================================
+   NDO.CSS — Naar Data Operations page
+   Builds on style.css (header, highlights-section, epic-table, status-pill).
+   ============================================================ */
+
+.ndo-hidden { display: none !important; }
+.ndo-muted  { color: #5e6c84; font-weight: 400; font-size: 0.85em; }
+
+.ndo-nav-link {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    padding: 0.55rem 1rem; border-radius: 999px;
+    background: white; border: 1.5px solid rgba(0,0,0,0.15);
+    color: #172b4d; font-weight: 600; font-size: 0.85rem; text-decoration: none;
+    transition: all 0.2s ease;
+}
+.ndo-nav-link:hover { background: #deebff; color: #0052cc; border-color: #4c9aff; }
+
+#ndoError { margin-bottom: 1.2rem; }
+
+/* ── Tiles ─────────────────────────────────────────────────── */
+.ndo-tiles {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.8rem;
+}
+.ndo-tile {
+    display: flex; align-items: center; gap: 0.9rem;
+    background: white; border-radius: 1.2rem; padding: 1.1rem 1.2rem;
+    border: 1.5px solid #e9ecef; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    animation: fadeIn 0.4s ease-out;
+}
+.ndo-tile-icon {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1.1rem;
+}
+.ndo-tile-value { font-size: 1.9rem; font-weight: 700; line-height: 1; color: #172b4d; }
+.ndo-tile-label { font-size: 0.78rem; color: #5e6c84; margin-top: 0.35rem; font-weight: 500; }
+.ndo-tile--incident   .ndo-tile-icon { background: linear-gradient(135deg, #ff7452, #de350b); }
+.ndo-tile--ops        .ndo-tile-icon { background: linear-gradient(135deg, #4c9aff, #0052cc); }
+.ndo-tile--critical   .ndo-tile-icon { background: linear-gradient(135deg, #ffc400, #ff8b00); }
+.ndo-tile--unassigned .ndo-tile-icon { background: linear-gradient(135deg, #998dd9, #6554c0); }
+.ndo-tile--new        .ndo-tile-icon { background: linear-gradient(135deg, #79e2f2, #00a3bf); }
+
+/* ── Daily update body ─────────────────────────────────────── */
+#highlightsBody { display: flex; flex-direction: column; gap: 1rem; background: #fafbfc; }
+#highlightsBody.collapsed { display: none; }
+
+/* RAG banner */
+.ndo-rag-banner {
+    display: flex; align-items: center; gap: 1.4rem;
+    border-radius: 14px; padding: 0.9rem 1.2rem;
+    background: #ebecf0; color: #172b4d;
+}
+.ndo-rag--green { background: linear-gradient(135deg, #57d9a3, #36b37e); color: #fff; }
+.ndo-rag--amber { background: linear-gradient(135deg, #ffd166, #ffab00); color: #172b4d; }
+.ndo-rag--red   { background: linear-gradient(135deg, #ff7452, #de350b); color: #fff; }
+.ndo-rag-head { display: flex; flex-direction: column; min-width: 130px; }
+.ndo-rag-caption { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+.ndo-rag-value { font-size: 1.45rem; font-weight: 800; line-height: 1.15; }
+.ndo-rag-reasons {
+    flex: 1; list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem;
+    border-left: 1.5px solid rgba(255,255,255,0.45); padding-left: 1.2rem;
+}
+.ndo-rag--amber .ndo-rag-reasons { border-left-color: rgba(23,43,77,0.25); }
+.ndo-rag-reasons li {
+    background: rgba(255,255,255,0.22); border-radius: 999px; padding: 0.25rem 0.75rem;
+    font-size: 0.84rem; font-weight: 600;
+}
+.ndo-rag--amber .ndo-rag-reasons li { background: rgba(255,255,255,0.5); }
+.ndo-rag-select {
+    font: inherit; font-size: 0.78rem; font-weight: 500; color: #172b4d;
+    background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px; padding: 0.3rem 0.5rem; cursor: pointer;
+}
+
+/* Panels */
+.ndo-hl-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 1rem; }
+.ndo-panel {
+    background: white; border: 1px solid #e3e6eb; border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.ndo-panel-head {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.7rem 1rem; background: #f4f5f7; border-bottom: 1px solid #e3e6eb;
+}
+.ndo-panel-title { font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+.ndo-panel-title i { color: #0052cc; }
+.ndo-panel-head--hl { background: linear-gradient(135deg, #6554c0, #8777d9); color: white; border-bottom: none; }
+.ndo-panel-head--hl .ndo-panel-title i { color: #fff; }
+.ndo-panel-head--tickets { background: #eae6ff; }
+.ndo-panel-head--tickets .ndo-panel-title i { color: #5243aa; }
+.ndo-panel-meta { margin-left: auto; font-size: 0.74rem; opacity: 0.85; }
+.ndo-panel-meta--warn { color: #ffe380; opacity: 1; font-weight: 600; }
+.ndo-panel-head--tickets .ndo-panel-meta { color: #42526e; }
+.ndo-panel-body { padding: 0.9rem 1rem 1rem; flex: 1; }
+
+.ndo-subhead {
+    font-size: 0.72rem; font-weight: 700; color: #42526e; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 1rem 0 0.5rem; display: flex; align-items: center; gap: 0.4rem;
+}
+.ndo-subhead:first-child { margin-top: 0; }
+.ndo-subhead .ndo-muted { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+.ndo-subhead .count-badge {
+    background: #eae6ff; color: #403294; border-radius: 999px; padding: 0 8px; font-size: 0.75rem;
+}
+
+.ndo-icon-btn {
+    background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer;
+    width: 30px; height: 30px; border-radius: 50%; font-size: 0.8rem; flex-shrink: 0;
+}
+.ndo-icon-btn:hover:not(:disabled) { background: rgba(255,255,255,0.35); }
+.ndo-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ndo-icon-btn.is-busy i { animation: spin 0.8s linear infinite; }
+
+/* Developer updates */
+.ndo-dev-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+.ndo-dev-item {
+    position: relative; border: 1px solid #e3e6eb; border-left: 4px solid #8777d9;
+    border-radius: 10px; padding: 0.6rem 2rem 0.55rem 0.8rem; background: #fcfbff;
+}
+.ndo-dev-text { font-size: 0.92rem; line-height: 1.5; color: #172b4d; word-break: break-word; }
+.ndo-dev-text a { color: #0747a6; font-weight: 700; text-decoration: none; }
+.ndo-dev-text a:hover { text-decoration: underline; }
+.ndo-dev-tickets { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.45rem; }
+.ndo-dev-ticket {
+    display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+    background: #fff; border: 1px solid #ebecf0; border-radius: 8px; padding: 0.3rem 0.55rem; font-size: 0.8rem;
+}
+.ndo-dev-key { color: #0052cc; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.ndo-dev-key:hover { text-decoration: underline; }
+.ndo-dev-sum { flex: 1; min-width: 160px; color: #42526e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndo-dev-meta-chips { display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.ndo-dev-meta-chips .status-pill { padding: 1px 8px; font-size: 0.7rem; }
+.ndo-dev-owner { color: #42526e; font-size: 0.76rem; }
+.ndo-dev-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.35rem; font-size: 0.75rem; color: #5e6c84; }
+.ndo-dev-foot .status-pill { padding: 1px 8px; font-size: 0.7rem; }
+.ndo-dev-foot b { color: #42526e; font-weight: 600; }
+.ndo-dev-ai { color: #5243aa; font-weight: 700; background: #eae6ff; border-radius: 4px; padding: 0 5px; }
+.ndo-dev-empty {
+    display: flex; gap: 0.6rem; align-items: flex-start;
+    background: #fffae6; border: 1px solid #ffe380; color: #7a5200;
+    border-radius: 10px; padding: 0.65rem 0.8rem; font-size: 0.86rem;
+}
+.ndo-note-del {
+    position: absolute; top: 0.45rem; right: 0.45rem;
+    background: none; border: none; color: #8993a4; cursor: pointer; padding: 0.1rem 0.3rem; font-size: 0.85rem;
+}
+.ndo-note-del:hover { color: #de350b; }
+
+/* Severity tiles */
+.ndo-sev-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.45rem; }
+.ndo-sev {
+    background: #f7f8fa; border-radius: 10px; padding: 0.5rem 0.3rem;
+    text-align: center; border-top: 4px solid #c1c7d0;
+}
+.ndo-sev b { display: block; font-size: 1.35rem; line-height: 1.1; }
+.ndo-sev span { font-size: 0.72rem; color: #42526e; font-weight: 600; }
+.ndo-sev.is-zero b { color: #a5adba; }
+.ndo-sev--Sev-0 { border-top-color: #bf2600; }
+.ndo-sev--Sev-1 { border-top-color: #ff5630; }
+.ndo-sev--Sev-2 { border-top-color: #ffab00; }
+.ndo-sev--Sev-3 { border-top-color: #4c9aff; }
+
+/* Priority bars */
+.ndo-bars { display: flex; flex-direction: column; gap: 0.45rem; }
+.ndo-bar-row { display: grid; grid-template-columns: 70px 1fr 34px; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
+.ndo-bar-label { font-weight: 600; color: #42526e; }
+.ndo-bar-track { height: 10px; background: #f0f1f4; border-radius: 999px; overflow: hidden; }
+.ndo-bar-fill { height: 100%; border-radius: 999px; background: #a5adba; }
+.ndo-bar--Critical, .ndo-bar--Highest { background: #de350b; }
+.ndo-bar--High   { background: #ff8b00; }
+.ndo-bar--Medium { background: #ffc400; }
+.ndo-bar--Low, .ndo-bar--Lowest { background: #36b37e; }
+.ndo-bar-value { text-align: right; font-weight: 700; }
+
+/* Chips */
+.ndo-chip {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 0.74em; font-weight: 600; white-space: nowrap; vertical-align: 1px;
+}
+.ndo-chip--Critical, .ndo-chip--Highest, .ndo-chip--Sev-0 { background: #ffebe6; color: #bf2600; }
+.ndo-chip--High, .ndo-chip--Sev-1    { background: #fff0db; color: #a54800; }
+.ndo-chip--Medium, .ndo-chip--Sev-2  { background: #fff8cc; color: #7d6100; }
+.ndo-chip--Low, .ndo-chip--Lowest, .ndo-chip--Sev-3 { background: #e3fcef; color: #006644; }
+.ndo-chip--None, .ndo-chip--Not-set  { background: #f4f5f7; color: #5e6c84; }
+.ndo-chip--type-Incident   { background: #ffebe6; color: #bf2600; }
+.ndo-chip--type-Operations { background: #deebff; color: #0747a6; }
+
+/* ── Manual update + Slack cards ───────────────────────────── */
+.ndo-actions-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.4rem; margin-bottom: 1.8rem;
+}
+.ndo-card {
+    background: white; border-radius: 1.6rem; border: 1.5px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 1.2rem 1.4rem;
+    animation: fadeIn 0.4s ease-out;
+}
+.ndo-card-title { font-weight: 700; font-size: 1.02rem; margin-bottom: 0.9rem; display: flex; gap: 0.5rem; align-items: center; }
+.ndo-card-title i { color: #0052cc; }
+.ndo-card-hint { font-size: 0.8rem; color: #5e6c84; margin: -0.4rem 0 0.7rem; }
+
+.ndo-note-form textarea, .ndo-note-form input {
+    width: 100%; font: inherit; font-size: 0.9rem; color: #172b4d;
+    border: 1.5px solid #dfe1e6; border-radius: 10px; padding: 0.6rem 0.75rem;
+    background: #fafbfc; transition: border-color 0.15s, background 0.15s;
+}
+.ndo-note-form textarea { resize: vertical; min-height: 70px; }
+.ndo-note-form textarea:focus, .ndo-note-form input:focus { outline: none; border-color: #4c9aff; background: white; }
+.ndo-note-form-row { display: flex; gap: 0.6rem; margin-top: 0.6rem; }
+.ndo-note-form-row input { flex: 1; }
+
+.ndo-btn {
+    display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap;
+    font: inherit; font-size: 0.85rem; font-weight: 600; text-decoration: none;
+    padding: 0.55rem 1rem; border-radius: 999px; cursor: pointer;
+    background: white; color: #172b4d; border: 1.5px solid rgba(0,0,0,0.15);
+    transition: all 0.15s ease;
+}
+.ndo-btn:hover:not(:disabled) { background: #deebff; border-color: #4c9aff; color: #0052cc; }
+.ndo-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ndo-btn--primary { background: #0052cc; border-color: #0052cc; color: white; }
+.ndo-btn--primary:hover:not(:disabled) { background: #0747a6; border-color: #0747a6; color: white; }
+.ndo-btn--ghost { border-style: dashed; margin-top: 0.8rem; }
+.ndo-btn.is-busy i { animation: spin 0.8s linear infinite; }
+
+.ndo-steps { margin-left: 1.2rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.ndo-steps li { padding-left: 0.2rem; }
+.ndo-steps li .ndo-muted { display: inline-block; margin-left: 0.5rem; }
+
+.ndo-slack-status {
+    font-size: 0.82rem; border-radius: 10px; padding: 0.55rem 0.8rem; margin-bottom: 0.9rem;
+    background: #f4f5f7; color: #42526e;
+}
+.ndo-slack-status--off  { background: #fffae6; color: #7a5200; }
+.ndo-slack-status--done { background: #e3fcef; color: #006644; }
+
+/* ── Open tickets table extras ─────────────────────────────── */
+.ndo-filter { display: flex; gap: 0.4rem; }
+.ndo-filter button {
+    font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    padding: 0.4rem 0.85rem; border-radius: 999px; border: 1.5px solid #dfe1e6;
+    background: white; color: #42526e;
+}
+.ndo-filter button.active { background: #172b4d; border-color: #172b4d; color: white; }
+.ndo-empty { text-align: center; color: #5e6c84; padding: 28px 0 !important; }
+.epic-table a.ndo-key { color: #0052cc; font-weight: 600; text-decoration: none; }
+.epic-table a.ndo-key:hover { text-decoration: underline; }
+.ndo-unassigned { color: #8993a4; font-style: italic; }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.ndo-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 20px);
+    background: #172b4d; color: white; padding: 0.7rem 1.2rem; border-radius: 12px;
+    font-size: 0.88rem; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    opacity: 0; pointer-events: none; transition: all 0.25s ease; z-index: 1100; max-width: min(640px, 92vw);
+}
+.ndo-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ndo-toast--error { background: #bf2600; }
+
+/* ── Slack image preview modal ─────────────────────────────── */
+body.ndo-modal-open { overflow: hidden; }
+.ndo-modal {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(9, 30, 66, 0.72); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; padding: 2.5vh 2.5vw;
+}
+.ndo-modal[hidden] { display: none; }
+.ndo-modal-box {
+    background: white; border-radius: 16px; width: 100%; height: 100%; max-width: 1700px;
+    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.ndo-modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.75rem 1rem; border-bottom: 1px solid #e3e6eb; font-weight: 700;
+}
+.ndo-modal-actions { display: flex; align-items: center; gap: 0.5rem; }
+.ndo-modal-close {
+    width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
+    background: #f4f5f7; color: #42526e; font-size: 1rem;
+}
+.ndo-modal-close:hover { background: #ffebe6; color: #bf2600; }
+.ndo-modal-body { flex: 1; overflow: auto; background: #ebecf0; padding: 1rem; text-align: center; }
+.ndo-modal-body img { max-width: 100%; height: auto; cursor: zoom-in; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.ndo-modal-body.is-zoomed { text-align: left; }
+.ndo-modal-body.is-zoomed img { max-width: none; cursor: zoom-out; }
+.ndo-modal-loading { display: flex; align-items: center; justify-content: center; gap: 0.8rem; height: 100%; color: #42526e; }
+.ndo-modal-loading[hidden] { display: none; }
+.ndo-modal-loading .spinner { margin: 0; }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+    .ndo-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+    .ndo-hl-grid, .ndo-actions-row { grid-template-columns: 1fr; }
+    .ndo-rag-banner { flex-wrap: wrap; gap: 0.7rem; }
+    .ndo-rag-reasons { border-left: none; padding-left: 0; flex-basis: 100%; }
+}
+@media (max-width: 640px) {
+    .ndo-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ndo-note-form-row { flex-direction: column; }
+    .ndo-steps li .ndo-muted { display: block; margin: 0.3rem 0 0; }
+    .ndo-modal-actions .ndo-btn { padding: 0.45rem 0.7rem; font-size: 0.78rem; }
+}
+
+/* ── Snapshot mode (?snapshot=1): what gets posted to Slack as an image ── */
+body.ndo-snapshot { padding: 0; }
+body.ndo-snapshot #ndoSnapshotArea { padding: 22px 26px 26px; background: #f4f5f7; }
+body.ndo-snapshot .ndo-nav-link,
+body.ndo-snapshot #refreshBtn,
+body.ndo-snapshot .highlights-toggle-btn,
+body.ndo-snapshot .ndo-rag-select,
+body.ndo-snapshot .ndo-icon-btn,
+body.ndo-snapshot .ndo-note-del { display: none !important; }
+body.ndo-snapshot .highlights-section { margin-bottom: 0; }
+body.ndo-snapshot .ndo-tile, body.ndo-snapshot .highlights-section { animation: none; }

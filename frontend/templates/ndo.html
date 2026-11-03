@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naar Data Operations</title>
+    <link rel="icon" href="https://gargashjirabackup.blob.core.windows.net/logos/naar/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ndo.css') }}">
+</head>
+<body>
+<div class="dashboard-container">
+<div id="ndoSnapshotArea">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo-area">
+            <img src="https://gargashjirabackup.blob.core.windows.net/logos/naar/Naar%20logo.png" alt="Naar" class="logo-img">
+            <div class="logo-text"><h1>Naar Data Operations</h1></div>
+        </div>
+        <div class="header-right">
+            <a class="ndo-nav-link" href="/"><i class="fas fa-columns"></i> Sprint Dashboard</a>
+            <div class="badge-sprint">
+                <i class="fas fa-clock"></i>
+                <span id="ndoUpdatedLabel">Loading…</span>
+            </div>
+            <button id="refreshBtn" class="refresh-btn" title="Refresh from Jira">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="ndoError" class="highlights-error ndo-hidden" role="alert"></div>
+
+    <!-- TILES -->
+    <div class="ndo-tiles" id="ndoTiles">
+        <div class="ndo-tile ndo-tile--incident"><div class="ndo-tile-icon"><i class="fas fa-fire-alt"></i></div>
+            <div><div class="ndo-tile-value" id="tileIncident">–</div><div class="ndo-tile-label">Open Incidents</div></div></div>
+        <div class="ndo-tile ndo-tile--ops"><div class="ndo-tile-icon"><i class="fas fa-cogs"></i></div>
+            <div><div class="ndo-tile-value" id="tileOps">–</div><div class="ndo-tile-label">Open Operations</div></div></div>
+        <div class="ndo-tile ndo-tile--critical"><div class="ndo-tile-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div><div class="ndo-tile-value" id="tileCritical">–</div><div class="ndo-tile-label">Critical / High</div></div></div>
+        <div class="ndo-tile ndo-tile--unassigned"><div class="ndo-tile-icon"><i class="fas fa-user-slash"></i></div>
+            <div><div class="ndo-tile-value" id="tileUnassigned">–</div><div class="ndo-tile-label">Unassigned</div></div></div>
+        <div class="ndo-tile ndo-tile--new"><div class="ndo-tile-icon"><i class="fas fa-plus-circle"></i></div>
+            <div><div class="ndo-tile-value" id="tileNew">–</div><div class="ndo-tile-label">New in last 24h</div></div></div>
+    </div>
+
+    <!-- HIGHLIGHTS -->
+    <div class="highlights-section" id="highlightsSection">
+        <div class="highlights-header" id="highlightsToggle">
+            <div class="highlights-header-left">
+                <i class="fas fa-star"></i>
+                <span id="ndoTitleCell">Daily Update</span>
+            </div>
+            <button class="highlights-toggle-btn" id="highlightsToggleBtn" aria-label="Collapse daily update"><i class="fas fa-chevron-up"></i></button>
+        </div>
+        <div class="highlights-body" id="highlightsBody">
+
+            <!-- Overall RAG -->
+            <div class="ndo-rag-banner" id="ndoRagCell">
+                <div class="ndo-rag-head">
+                    <span class="ndo-rag-caption">Overall RAG</span>
+                    <span class="ndo-rag-value" id="ndoRagLabel">–</span>
+                </div>
+                <ul class="ndo-rag-reasons" id="ndoRagReasons"></ul>
+                <select id="ndoRagSelect" class="ndo-rag-select" title="Override today's RAG">
+                    <option value="">Auto</option>
+                    <option value="green">Green — On Track</option>
+                    <option value="amber">Amber — Moderate</option>
+                    <option value="red">Red — Critical</option>
+                </select>
+            </div>
+
+            <div class="ndo-hl-grid">
+                <!-- Highlights = developer updates + ticket summary -->
+                <section class="ndo-panel">
+                    <header class="ndo-panel-head ndo-panel-head--hl">
+                        <span class="ndo-panel-title"><i class="fas fa-bullhorn"></i> Highlights</span>
+                        <span class="ndo-panel-meta" id="ndoDevMeta"></span>
+                        <button type="button" class="ndo-icon-btn" id="ndoDevSyncBtn" title="Fetch latest developer updates from Slack" aria-label="Fetch developer updates"><i class="fas fa-sync-alt"></i></button>
+                    </header>
+                    <div class="ndo-panel-body">
+                        <div class="ndo-subhead">Developer updates <span class="count-badge" id="ndoDevCount">0</span></div>
+                        <ul id="ndoDevUpdates" class="ndo-dev-list"></ul>
+                    </div>
+                </section>
+
+                <!-- At a glance -->
+                <section class="ndo-panel">
+                    <header class="ndo-panel-head">
+                        <span class="ndo-panel-title"><i class="fas fa-chart-pie"></i> At a glance</span>
+                    </header>
+                    <div class="ndo-panel-body">
+                        <div class="ndo-subhead">Severity <span class="ndo-muted">· incidents</span></div>
+                        <div class="ndo-sev-row" id="ndoSeverity"></div>
+                        <div class="ndo-subhead">Priority <span class="ndo-muted">· all open tickets</span></div>
+                        <div class="ndo-bars" id="ndoPriorityBars"></div>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+    </div>
+
+</div><!-- /ndoSnapshotArea: everything above is what the Slack image shows -->
+
+    <!-- MANUAL UPDATE + SLACK -->
+    <div class="ndo-actions-row">
+        <div class="ndo-card">
+            <div class="ndo-card-title"><i class="fas fa-comment-dots"></i> Add a developer update</div>
+            <p class="ndo-card-hint">Updates posted in the Slack updates channel are picked up automatically. Use this only for updates that didn't come through Slack.</p>
+            <form id="ndoNoteForm" class="ndo-note-form">
+                <textarea id="ndoNoteText" rows="3" maxlength="2000" required
+                          placeholder="e.g. NDO-873 live stream fix deployed to staging, monitoring today"></textarea>
+                <div class="ndo-note-form-row">
+                    <input id="ndoNoteAuthor" type="text" maxlength="80" placeholder="Developer name (optional)">
+                    <button type="submit" class="ndo-btn ndo-btn--primary"><i class="fas fa-plus"></i> Add update</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="ndo-card">
+            <div class="ndo-card-title"><i class="fab fa-slack"></i> Slack daily update</div>
+            <div id="ndoSlackStatus" class="ndo-slack-status"></div>
+            <ol class="ndo-steps">
+                <li><button class="ndo-btn" id="ndoSlackSync" type="button"><i class="fas fa-download"></i> Fetch developer updates</button>
+                    <span class="ndo-muted">Reads today's messages and rephrases them.</span></li>
+                <li><button class="ndo-btn" id="ndoSlackRemind" type="button"><i class="fas fa-bell"></i> Send reminder now</button>
+                    <span class="ndo-muted">Runs automatically 1 hour before the post.</span></li>
+                <li><button class="ndo-btn ndo-btn--primary" id="ndoSlackPost" type="button"><i class="fas fa-paper-plane"></i> Post daily update</button>
+                    <span class="ndo-muted" id="ndoPostHint">Runs automatically; skipped if there are no updates today.</span></li>
+            </ol>
+            <button class="ndo-btn ndo-btn--ghost" id="ndoPreviewBtn" type="button"><i class="fas fa-image"></i> Preview Slack image</button>
+        </div>
+    </div>
+
+    <!-- ALL OPEN TICKETS -->
+    <div class="epic-table-section">
+        <div class="epic-table-header">
+            <div class="epic-table-title">
+                <i class="fas fa-list"></i> Open Tickets
+                <span class="count-badge" id="ndoTicketCount">0</span>
+            </div>
+            <div class="epic-table-actions">
+                <div class="ndo-filter" id="ndoTypeFilter"></div>
+                <div class="epic-search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="ndoSearch" placeholder="Search key, summary, assignee…" autocomplete="off">
+                </div>
+            </div>
+        </div>
+        <div class="epic-table-wrapper">
+            <table class="epic-table">
+                <thead>
+                    <tr>
+                        <th style="width:100px;">Key</th>
+                        <th style="width:110px;">Type</th>
+                        <th>Summary</th>
+                        <th style="width:130px;">Status</th>
+                        <th style="width:90px;">Priority</th>
+                        <th style="width:90px;">Severity</th>
+                        <th style="width:150px;">Assignee</th>
+                        <th style="width:70px;">Age</th>
+                    </tr>
+                </thead>
+                <tbody id="ndoTicketBody">
+                    <tr><td colspan="8" class="ndo-empty">Loading tickets…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer id="ndoFooter">
+        <i class="fas fa-filter"></i> <span id="ndoJql">Incident &amp; Operations tickets, excluding Done / Rejected</span>
+    </footer>
+</div>
+
+<div id="ndoToast" class="ndo-toast" role="status" aria-live="polite"></div>
+
+<!-- Slack image preview -->
+<div id="ndoModal" class="ndo-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ndoModalTitle">
+    <div class="ndo-modal-box">
+        <div class="ndo-modal-head">
+            <span id="ndoModalTitle"><i class="fab fa-slack"></i> Slack image preview</span>
+            <div class="ndo-modal-actions">
+                <button type="button" class="ndo-btn" id="ndoModalZoom"><i class="fas fa-search-plus"></i> Actual size</button>
+                <a class="ndo-btn" id="ndoModalOpen" href="#" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> Open in new tab</a>
+                <button type="button" class="ndo-modal-close" id="ndoModalClose" aria-label="Close preview"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="ndo-modal-body" id="ndoModalBody">
+            <div class="ndo-modal-loading" id="ndoModalLoading"><div class="spinner"></div> Rendering the dashboard image…</div>
+            <img id="ndoModalImg" alt="Slack image preview" hidden>
+        </div>
+    </div>
+</div>
+<script type="module" src="{{ url_for('static', filename='js/ndo.js') }}"></script>
+</body>
+</html>

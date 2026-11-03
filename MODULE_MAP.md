@@ -44,6 +44,9 @@
 | `css/style.css` | Everything base: layout, cards, header, metrics, charts, epic table, platform |
 | `css/modules/settings-panel.css` | Settings drawer + gear button |
 | `css/modules/legend-table.css` | Table-style and pill-style legends |
+| `css/ndo.css` | Naar Data Operations page (`/ndo`) |
+
+**NDO page JS**: `js/ndo.js` (+ `templates/ndo.html`) — standalone, reuses `modules/helpers.js` only.
 
 ---
 
@@ -53,7 +56,15 @@
 |------|-------------|-------------|
 | `backend/app.py` | Flask routes | Adding/changing API endpoints |
 | `backend/jira_apis.py` | All Jira API calls | Changing Jira queries or adding new endpoints |
-| `backend/config.py` | Configuration (env vars) | Adding/changing config keys |
+| `backend/config.py` | Reads every setting from `backend/.env` (template: `.env.example`). No hardcoded values. | Adding/changing config keys |
+| `backend/ndo_routes.py` | `/ndo` page + `/api/ndo/*` endpoints | Adding NDO endpoints |
+| `backend/ndo_service.py` | NDO glue: Jira query + cache, developer-update sync, 6 PM reminder, 7 PM post (skipped without updates) | Changing the JQL or daily flow |
+| `backend/ndo_report.py` | Pure logic: RAG rules, highlight sentences, key tickets, Slack text | Changing the reasoning / wording |
+| `backend/ndo_snapshot.py` | Renders the PNG snapshot posted to Slack (Pillow) | Changing the Slack image |
+| `backend/ndo_store.py` | JSON store (`data/ndo_state.json`) for team updates, RAG override, Slack state | Changing what's saved per day |
+| `backend/slack_client.py` | Slack Web API calls (post, upload image, read channel/threads, mrkdwn → text) | Slack API changes |
+| `backend/ai_rephrase.py` | Rephrases developer updates via `AI_ENDPOINT_URL`; keeps ticket keys | Changing the AI prompt or endpoint format |
+| `backend/ndo_daily.py` | CLI for the scheduler: `sync` / `remind` / `post` / `preview` | Changing scheduled behaviour |
 
 ---
 
@@ -64,6 +75,7 @@
 | `deploy/naar-dashboard.service` | systemd unit — copy to `/etc/systemd/system/` |
 | `deploy/nginx-naar-dashboard.conf` | Nginx reverse proxy config |
 | `deploy/SERVER_SETUP.md` | Step-by-step server setup guide |
+| `deploy/ndo-daily@.service` + `ndo-daily-*.timer` / `ndo-crontab` | 6 PM IST reminder, 7 PM IST post |
 
 ---
 
@@ -83,3 +95,9 @@
 
 **"Platform cards are showing blank"**
 → Check `modules/platform.js`. The `PLATFORM_FIELD` comes from `helpers.js` which reads `JIRA_PLATFORM_FIELD` set in `index.html` from Flask.
+
+**"I want to change the NDO RAG rules or highlight wording"**
+→ `backend/ndo_report.py` — `compute_rag()` and `build_highlights()`. Test with `python ndo_daily.py preview`.
+
+**"Which tickets does /ndo show?"**
+→ `NDO_PROJECT_KEY`, `NDO_ISSUE_TYPES`, `NDO_EXCLUDED_STATUSES` in `backend/.env`. The JQL is printed in the page footer.

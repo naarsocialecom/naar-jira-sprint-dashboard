@@ -1,0 +1,12 @@
+# 7 PM IST: post the daily summary. Skipped automatically if there are no
+# developer updates for today, so yesterday's summary is never re-posted.
+[Unit]
+Description=NDO — post daily update to Slack
+
+[Timer]
+OnCalendar=*-*-* 19:00:00 Asia/Kolkata
+Persistent=false
+Unit=ndo-daily@post.service
+
+[Install]
+WantedBy=timers.target

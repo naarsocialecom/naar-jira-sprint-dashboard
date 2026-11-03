@@ -1,0 +1,11 @@
+# 6 PM IST: "1 hour left" reminder to post developer updates.
+[Unit]
+Description=NDO — remind team to post developer updates
+
+[Timer]
+OnCalendar=*-*-* 18:00:00 Asia/Kolkata
+Persistent=false
+Unit=ndo-daily@remind.service
+
+[Install]
+WantedBy=timers.target

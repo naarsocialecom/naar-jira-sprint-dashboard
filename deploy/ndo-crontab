@@ -1,0 +1,12 @@
+# NDO daily Slack update — cron alternative to the systemd timers.
+# Install for the app user:   crontab -u ubuntu /opt/naar-live/deploy/ndo-crontab
+#
+# Times below assume the server clock is UTC (6 PM IST = 12:30 UTC, 7 PM IST = 13:30 UTC).
+# If the server timezone is Asia/Kolkata (`timedatectl`), use "0 18" and "0 19" instead.
+SHELL=/bin/bash
+APP=/opt/naar-live/backend
+
+# 6:00 PM IST — "1 hour left" reminder
+30 12 * * * cd $APP && venv/bin/python ndo_daily.py remind >> /var/log/naar-dashboard/ndo-daily.log 2>&1
+# 7:00 PM IST — post summary (skipped automatically if no developer updates today)
+30 13 * * * cd $APP && venv/bin/python ndo_daily.py post   >> /var/log/naar-dashboard/ndo-daily.log 2>&1

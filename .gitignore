@@ -1,2 +1,29 @@
-backend/config.py
-backend/config.py
+# ── Secrets — never commit. Config lives in backend/.env (template: backend/.env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Runtime data, logs, generated images
+backend/data/
+backend/logs/
+logs/
+*.log
+ndo-snapshot.png
+*.corrupt-*.json
+
+# ── Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# ── Browsers downloaded by Playwright
+ms-playwright/
+
+# ── OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,23 @@
+# Slack app manifest for the NDO daily update bot.
+# api.slack.com/apps → Create New App → From an app manifest → paste this file.
+display_information:
+  name: NDO Daily Update
+  description: Reads developer updates and posts the Naar Data Operations daily summary.
+  background_color: "#0052cc"
+features:
+  bot_user:
+    display_name: NDO Daily Update
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write          # 6 PM reminder + 7 PM summary text
+      - files:write         # snapshot image
+      - channels:history    # read developer updates (public channels)
+      - groups:history      # read developer updates (private channels)
+      - users:read          # show developer names instead of user IDs
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  # Must stay off: with rotation on, the xoxb- token expires every 12 hours
+  token_rotation_enabled: false

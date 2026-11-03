@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/settings-panel.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/legend-table.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ndo.css') }}">
 </head>
 <body>
 <div class="dashboard-container">
@@ -21,6 +22,7 @@
             <div class="logo-text"><h1>Naar Sprint Dashboard</h1></div>
         </div>
         <div class="header-right">
+            <a class="ndo-nav-link" href="/ndo"><i class="fas fa-headset"></i> Data Operations</a>
             <div class="badge-sprint">
                 <i class="fas fa-chart-line"></i>
                 <span id="activeSprintBadge">Loading sprints...</span>
@@ -39,7 +41,7 @@
         <div class="highlights-header" id="highlightsToggle">
             <div class="highlights-header-left">
                 <i class="fas fa-star"></i>
-                <span>Highlights</span>
+                <span>Daily Highlights</span>
                 <span id="highlightsSummaryLabel" style="font-size:0.82rem;color:#5e6c84;font-weight:500;margin-left:0.3rem;"></span>
             </div>
             <button class="highlights-toggle-btn" id="highlightsToggleBtn"><i class="fas fa-chevron-up"></i></button>
@@ -152,7 +154,7 @@
             <div class="epic-table-header">
                 <div class="epic-table-title">
                     <i class="fas fa-layer-group"></i>
-                    Epics in Sprint
+                    Involved Epics
                     <span class="count-badge" id="epicTableCount">0</span>
                 </div>
                 <div class="epic-table-actions">

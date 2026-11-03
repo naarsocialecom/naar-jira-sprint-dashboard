@@ -1,0 +1,17 @@
+# Runs one NDO daily step: ndo-daily@remind.service or ndo-daily@post.service
+# Triggered by ndo-daily-remind.timer / ndo-daily-post.timer.
+[Unit]
+Description=Naar Data Operations daily Slack step (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/naar-live/backend
+EnvironmentFile=/opt/naar-live/backend/.env
+ExecStart=/opt/naar-live/backend/venv/bin/python ndo_daily.py %i
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
