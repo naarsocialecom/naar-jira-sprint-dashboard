@@ -111,7 +111,7 @@ def slack_remind():
 
 @ndo_bp.route('/api/ndo/slack/sync', methods=['POST'])
 def slack_sync():
-    return jsonify(service().sync_dev_updates())
+    return jsonify(service().sync_all_updates(raise_errors=True))
 
 
 @ndo_bp.route('/api/ndo/slack/post', methods=['POST'])

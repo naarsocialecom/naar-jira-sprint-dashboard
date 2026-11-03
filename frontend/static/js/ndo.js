@@ -11,6 +11,12 @@ const $ = id => document.getElementById(id);
 let report      = null;
 let typeFilter  = 'All';
 
+const SOURCE_ICONS = {
+    slack:     '<i class="fab fa-slack" title="From Slack"></i>',
+    jira:      '<i class="fab fa-jira" title="Ticket closed today — written from its Jira comments"></i>',
+    dashboard: '<i class="fas fa-keyboard" title="Added on dashboard"></i>',
+};
+
 // ── API ──────────────────────────────────────────────────────
 async function api(path, options = {}) {
     const res = await fetch(`${NDO_API}${path}`, {
@@ -120,10 +126,10 @@ function renderDevUpdates() {
             ${tickets ? `<div class="ndo-dev-tickets">${tickets}</div>` : ''}
             <div class="ndo-dev-foot">
                 <span>${u.author ? `<b>${escapeHtml(u.author)}</b> · ` : ''}${timeLabel(u.created_at)}</span>
-                ${u.source === 'slack' ? '<i class="fab fa-slack" title="From Slack"></i>' : '<i class="fas fa-keyboard" title="Added on dashboard"></i>'}
+                ${SOURCE_ICONS[u.source] || SOURCE_ICONS.dashboard}
                 ${u.rephrased ? '<span class="ndo-dev-ai" title="Rephrased by AI — hover the text for the original">AI</span>' : ''}
             </div>
-            ${u.source === 'slack' ? '' : `<button class="ndo-note-del" data-id="${escapeHtml(u.id)}" title="Remove update" aria-label="Remove update"><i class="fas fa-times"></i></button>`}
+            ${u.source === 'slack' || u.source === 'jira' ? '' : `<button class="ndo-note-del" data-id="${escapeHtml(u.id)}" title="Remove update" aria-label="Remove update"><i class="fas fa-times"></i></button>`}
         </li>`;
     }).join('');
 }
@@ -180,12 +186,19 @@ function renderTypeFilter() {
     ).join('');
 }
 
+// Incidents first, then Operations (order of NDO_ISSUE_TYPES); newest ticket number first within each
+function ticketOrder(a, b) {
+    const rank = t => { const i = report.issue_types.indexOf(t.type); return i === -1 ? report.issue_types.length : i; };
+    const num  = t => parseInt(t.key.split('-').pop(), 10) || 0;
+    return rank(a) - rank(b) || num(b) - num(a);
+}
+
 function renderTickets() {
     const q = $('ndoSearch').value.trim().toLowerCase();
     const list = report.tickets.filter(t =>
         (typeFilter === 'All' || t.type === typeFilter) &&
         (!q || [t.key, t.summary, t.assignee || '', t.status].some(v => v.toLowerCase().includes(q)))
-    );
+    ).sort(ticketOrder);
     $('ndoTicketCount').textContent = list.length;
     $('ndoTicketBody').innerHTML = list.length
         ? list.map(t => `<tr>

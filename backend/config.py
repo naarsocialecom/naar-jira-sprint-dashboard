@@ -81,6 +81,9 @@ class Config:
     JIRA_FIELD_SEVERITY = _get('JIRA_FIELD_SEVERITY')
     NDO_STALE_DAYS = _int('NDO_STALE_DAYS', 14)
     NDO_CACHE_SECONDS = _int('NDO_CACHE_SECONDS', 120)
+    # Tickets moved to an excluded status (Done / Rejected) today become developer updates,
+    # written by the AI from the ticket summary and its comments
+    NDO_CLOSED_TICKET_UPDATES = _bool('NDO_CLOSED_TICKET_UPDATES', True)
     REPORT_TIMEZONE = _get('REPORT_TIMEZONE', 'Asia/Kolkata')
     DASHBOARD_URL = _get('DASHBOARD_URL').rstrip('/')
 

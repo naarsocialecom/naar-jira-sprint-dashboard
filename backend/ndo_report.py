@@ -36,6 +36,27 @@ def _parse_dt(value: str) -> Optional[datetime]:
             return None
 
 
+def adf_text(node) -> str:
+    """Plain text of a Jira rich-text (ADF) body, e.g. a comment. Plain strings pass through."""
+    if isinstance(node, str):
+        return node
+    if not isinstance(node, dict):
+        return ''
+    kind = node.get('type')
+    attrs = node.get('attrs') or {}
+    if kind == 'text':
+        return node.get('text', '')
+    if kind in ('mention', 'emoji', 'status'):
+        return attrs.get('text', '')
+    if kind == 'inlineCard':
+        return attrs.get('url', '')
+    if kind == 'hardBreak':
+        return ' '
+    # Inline children of a paragraph join directly; blocks are separated by a space
+    sep = '' if kind in ('paragraph', 'heading') else ' '
+    return sep.join(filter(None, (adf_text(c) for c in node.get('content') or [])))
+
+
 def _option_value(raw) -> Optional[str]:
     if raw is None:
         return None

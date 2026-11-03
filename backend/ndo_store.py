@@ -83,6 +83,7 @@ class NdoStore:
             'reminder_ts': entry.get('reminder_ts'),
             'dev_synced_at': entry.get('dev_synced_at'),
             'dev_sync_error': entry.get('dev_sync_error'),
+            'closed_synced_at': entry.get('closed_synced_at'),
         }
 
     def add_note(self, day: str, text: str, author: str = '', source: str = 'dashboard',
@@ -112,28 +113,35 @@ class NdoStore:
     def sync_slack_notes(self, day: str, messages: List[Dict]) -> Dict[str, int]:
         """
         Replace the day's Slack-sourced notes with `messages` (each: slack_ts, raw_text,
-        text, author, rephrased, posted_at). Dashboard notes are left untouched.
+        text, author, rephrased, posted_at). Other notes are left untouched.
         """
+        return self._sync_source(day, 'slack', 'slack_ts', messages)
+
+    def sync_jira_notes(self, day: str, items: List[Dict]) -> Dict[str, int]:
+        """Replace the day's notes made from tickets closed today (each keyed by jira_key)."""
+        return self._sync_source(day, 'jira', 'jira_key', items)
+
+    def _sync_source(self, day: str, source: str, id_field: str, items: List[Dict]) -> Dict[str, int]:
         with self._locked():
             data = self._read()
             entry = self._day(data, day)
-            existing = {n['slack_ts']: n for n in entry['notes'] if n.get('slack_ts')}
-            manual = [n for n in entry['notes'] if not n.get('slack_ts')]
+            existing = {n[id_field]: n for n in entry['notes'] if n.get('source') == source and n.get(id_field)}
+            others = [n for n in entry['notes'] if n.get('source') != source]
             synced, added, changed = [], 0, 0
-            for msg in messages:
-                old = existing.get(msg['slack_ts'])
+            for item in items:
+                old = existing.get(item[id_field])
                 if old is None:
                     added += 1
-                elif old.get('raw_text') != msg['raw_text'] or old.get('text') != msg['text']:
+                elif old.get('raw_text') != item['raw_text'] or old.get('text') != item['text']:
                     changed += 1
                 synced.append({
                     'id': old['id'] if old else uuid.uuid4().hex[:12],
-                    'source': 'slack',
-                    **msg,
-                    'created_at': msg.get('posted_at') or datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                    'source': source,
+                    **item,
+                    'created_at': item.get('posted_at') or datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 })
-            removed = len(set(existing) - {m['slack_ts'] for m in messages})
-            entry['notes'] = sorted(manual + synced, key=lambda n: n.get('created_at') or '')
+            removed = len(set(existing) - {i[id_field] for i in items})
+            entry['notes'] = sorted(others + synced, key=lambda n: n.get('created_at') or '')
             self._write(data)
             return {'added': added, 'changed': changed, 'removed': removed}
 

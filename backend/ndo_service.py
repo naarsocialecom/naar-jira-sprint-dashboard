@@ -22,7 +22,7 @@ from ai_rephrase import rephrase, ticket_keys
 from config import Config
 from dashboard_snapshot import SnapshotError, capture_dashboard
 from jira_apis import JiraClient
-from ndo_report import build_report, normalize_issue, slack_text
+from ndo_report import _parse_dt, adf_text, build_report, normalize_issue, slack_text
 from ndo_snapshot import render_snapshot
 from ndo_store import NdoStore
 from slack_client import SlackClient, SlackError
@@ -203,17 +203,92 @@ class NdoService:
             self.store.set_value(day, 'dev_sync_error', None)
             return {**result, 'total': len(synced)}
 
+    def sync_closed_tickets(self) -> Dict:
+        """Tickets closed (Done / Rejected) today → updates written from the summary and today's comments."""
+        day, start = self.today(), self.start_of_today()
+        # "updated" is only a coarse pre-filter; the exact close time is checked below
+        jql = ' AND '.join(filter(None, [
+            f'project = "{Config.NDO_PROJECT_KEY}"',
+            f'issuetype in ({_jql_list(Config.NDO_ISSUE_TYPES)})' if Config.NDO_ISSUE_TYPES else '',
+            f'status in ({_jql_list(Config.NDO_EXCLUDED_STATUSES)})',
+            'updated >= -25h',
+        ]))
+
+        def since_start(value) -> bool:
+            dt = _parse_dt(value)
+            return bool(dt and dt >= start)
+
+        with self._sync_lock:
+            issues = self.jira.search_issues(
+                jql, ['summary', 'status', 'assignee', 'statuscategorychangedate', 'comment'])
+            previous = {n['jira_key']: n for n in self.store.notes(day) if n.get('source') == 'jira'}
+            items = []
+            for issue in issues:
+                f = issue['fields']
+                if not since_start(f.get('statuscategorychangedate')):
+                    continue
+                comments = (f.get('comment') or {}).get('comments') or []
+                # Today's comments; if nobody commented today, the latest one usually explains the close
+                picked = [c for c in comments if since_start(c.get('created'))] or comments[-1:]
+                comment_text = ' | '.join(filter(None, (' '.join(adf_text(c.get('body')).split()) for c in picked)))
+                raw = f"{issue['key']} moved to {f['status']['name']}: {f.get('summary') or ''}".strip()
+                if comment_text:
+                    raw += f". Comments: {comment_text[:1500]}"
+                old = previous.get(issue['key'])
+                if old and old.get('raw_text') == raw:
+                    text, rephrased = old['text'], old.get('rephrased', False)   # unchanged: no new AI call
+                else:
+                    text, rephrased = rephrase(raw)
+                closed_at = _parse_dt(f['statuscategorychangedate']).astimezone(timezone.utc)
+                items.append({
+                    'jira_key': issue['key'],
+                    'raw_text': raw,
+                    'text': text,
+                    'rephrased': rephrased,
+                    'author': (f.get('assignee') or {}).get('displayName', ''),
+                    'tickets': list(dict.fromkeys([issue['key'], *ticket_keys(raw)])),
+                    'posted_at': closed_at.isoformat(timespec='seconds'),
+                })
+            result = self.store.sync_jira_notes(day, items)
+            self.store.set_value(day, 'closed_synced_at', datetime.now(timezone.utc).isoformat(timespec='seconds'))
+            return {**result, 'total': len(items)}
+
+    def sync_all_updates(self, raise_errors: bool = False) -> Dict:
+        """Slack messages + tickets closed today. One source failing doesn't stop the other."""
+        jobs = []
+        if Config.slack_enabled() and Config.SLACK_DEV_UPDATES_CHANNEL_ID:
+            jobs.append(self.sync_dev_updates)
+        if Config.NDO_CLOSED_TICKET_UPDATES:
+            jobs.append(self.sync_closed_tickets)
+        totals = {'added': 0, 'changed': 0, 'removed': 0, 'total': 0}
+        error = None
+        for job in jobs:
+            try:
+                for k, v in job().items():
+                    totals[k] = totals.get(k, 0) + v
+            except Exception as e:
+                logger.warning(f"{job.__name__} failed: {e}")
+                error = error or e
+        if error and raise_errors:
+            raise error
+        return totals
+
+    def _due(self, state_key: str) -> bool:
+        last = self.store.get_day(self.today()).get(state_key)
+        return not last or (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() >= Config.NDO_DEV_SYNC_SECONDS
+
     def maybe_sync_dev_updates(self) -> None:
         """Throttled background-safe sync used when the dashboard is opened."""
-        if not (Config.slack_enabled() and Config.SLACK_DEV_UPDATES_CHANNEL_ID):
-            return
-        last = self.store.get_day(self.today()).get('dev_synced_at')
-        if last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < Config.NDO_DEV_SYNC_SECONDS:
-            return
-        try:
-            self.sync_dev_updates()
-        except Exception as e:
-            logger.warning(f"Automatic developer-update sync failed: {e}")
+        if Config.slack_enabled() and Config.SLACK_DEV_UPDATES_CHANNEL_ID and self._due('dev_synced_at'):
+            try:
+                self.sync_dev_updates()
+            except Exception as e:
+                logger.warning(f"Automatic developer-update sync failed: {e}")
+        if Config.NDO_CLOSED_TICKET_UPDATES and self._due('closed_synced_at'):
+            try:
+                self.sync_closed_tickets()
+            except Exception as e:
+                logger.warning(f"Automatic closed-ticket sync failed: {e}")
 
     # ── Slack ────────────────────────────────────────────────
     def slack_status(self, state: Dict = None) -> Dict:
@@ -238,10 +313,7 @@ class NdoService:
     def send_reminder(self) -> Dict:
         """One hour before the post: nudge the channel to add developer updates."""
         slack = self._slack()
-        try:
-            self.sync_dev_updates()
-        except (SlackError, SlackNotConfigured) as e:
-            logger.warning(f"Could not read developer updates before reminder: {e}")
+        self.sync_all_updates()
         day = self.today()
         notes = self.store.notes(day)
         mention = f"{Config.SLACK_REMINDER_MENTION} " if Config.SLACK_REMINDER_MENTION else ''
@@ -266,10 +338,7 @@ class NdoService:
         """
         slack = self._slack()
         day = self.today()
-        try:
-            self.sync_dev_updates()
-        except (SlackError, SlackNotConfigured) as e:
-            logger.warning(f"Could not read developer updates before posting: {e}")
+        self.sync_all_updates()
 
         if not self.store.notes(day):
             state = self.store.get_day(day)
