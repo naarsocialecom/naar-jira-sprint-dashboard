@@ -80,6 +80,7 @@ class NdoStore:
             'notes': entry.get('notes', []),
             'rag_override': entry.get('rag_override'),
             'slack_posted_at': entry.get('slack_posted_at'),
+            'slack_posted_channel': entry.get('slack_posted_channel'),
             'reminder_ts': entry.get('reminder_ts'),
             'dev_synced_at': entry.get('dev_synced_at'),
             'dev_sync_error': entry.get('dev_sync_error'),
@@ -170,23 +171,30 @@ class NdoStore:
             self._day(data, day)[key] = value
             self._write(data)
 
-    def claim_daily_post(self, day: str, force: bool = False) -> bool:
+    def claim_daily_post(self, day: str, channel: str, force: bool = False) -> bool:
         """
-        Atomically mark today's Slack post as in progress so the scheduled job
-        and the dashboard button can't both post. Returns False if already posted.
+        Atomically mark today's Slack post to `channel` as in progress so the scheduled job
+        and the dashboard button can't both post. Returns False if already posted there.
+        A post to another channel (e.g. a test channel) doesn't block this one.
         """
         with self._locked():
             data = self._read()
             entry = self._day(data, day)
-            if entry.get('slack_posted_at') and not force:
+            same_channel = entry.get('slack_posted_channel') in (None, channel)   # None: older record, assume same
+            if entry.get('slack_posted_at') and same_channel and not force:
                 return False
             entry['slack_posted_at'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+            entry['slack_posted_channel'] = channel
             self._write(data)
             return True
 
     def release_daily_post(self, day: str) -> None:
         """Undo claim_daily_post after a failed post so it can be retried."""
-        self.set_value(day, 'slack_posted_at', None)
+        with self._locked():
+            data = self._read()
+            entry = self._day(data, day)
+            entry['slack_posted_at'] = entry['slack_posted_channel'] = None
+            self._write(data)
 
     def notes(self, day: str) -> List[Dict]:
         return self.get_day(day)['notes']

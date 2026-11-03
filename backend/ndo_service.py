@@ -341,7 +341,9 @@ class NdoService:
             'ai_enabled': Config.ai_enabled(),
             'post_time': Config.NDO_POST_TIME_LABEL,
             'reminder_sent': bool(state.get('reminder_ts')),
-            'posted_at': state.get('slack_posted_at'),
+            # Only a post to the current summary channel counts (not an earlier test post elsewhere)
+            'posted_at': state.get('slack_posted_at')
+            if state.get('slack_posted_channel') in (None, Config.SLACK_CHANNEL_ID) else None,
             'dev_synced_at': state.get('dev_synced_at'),
             'dev_sync_error': state.get('dev_sync_error'),
         }
@@ -394,7 +396,7 @@ class NdoService:
             return {'posted': False, 'reason': 'no_updates',
                     'message': 'No developer updates for today — summary not posted.'}
 
-        if not self.store.claim_daily_post(day, force=force):
+        if not self.store.claim_daily_post(day, Config.SLACK_CHANNEL_ID, force=force):
             return {'posted': False, 'reason': 'already_posted',
                     'message': "Today's update was already posted (use force to post again)."}
         try:
