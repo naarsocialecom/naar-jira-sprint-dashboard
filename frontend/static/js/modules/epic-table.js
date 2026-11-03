@@ -242,9 +242,7 @@ export function renderEpicTable() {
         visibleCols.forEach(col => {
             let val = row[col.key];
             if (val === undefined || val === null || val === '') val = '—';
-            if (col.key === 'issueCount') {
-                cells += `<td style="text-align:center;font-weight:700;color:#0052cc;">${val}</td>`;
-            } else if (col.key === 'dueDate' && val !== '—') {
+            else if (col.key === 'dueDate' && val !== '—') {
                 const d   = new Date(val);
                 const fmt = isNaN(d.getTime()) ? val : d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
                 const isOverdue = new Date(val) < new Date();

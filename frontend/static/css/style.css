@@ -345,36 +345,41 @@ body {
 .metric-row-value { font-size: 2rem; font-weight: 700; color: #0052cc; }
 
 /* ============================================================
-   4 METRIC TILES
+   4+1 METRIC TILES — compact, no wasted space
    ============================================================ */
-.metrics-four-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 1.8rem; }
+.metrics-four-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.2rem; margin-bottom: 1.8rem; }
 .metric-four-tile {
     background: white;
     border-radius: 1.4rem;
     border: 1.5px solid #1e1e1e;
-    padding: 1.1rem 1.2rem;
+    padding: 1rem 1.2rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 .metric-four-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-.metric-four-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+.metric-four-icon { width: 42px; height: 42px; min-width: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
 .bug-tile .metric-four-icon        { background: linear-gradient(135deg, #e9724d, #d65c32); color: white; }
-.incident-tile .metric-four-icon   { background: none; border: none; box-shadow: none; width: 44px; height: 44px; padding: 0; }
+.incident-tile .metric-four-icon   { background: none; border: none; box-shadow: none; width: 42px; height: 42px; padding: 0; }
 .improvement-tile .metric-four-icon{ background: linear-gradient(135deg, #92cad1, #6eaeb6); color: white; }
 .story-tile .metric-four-icon      { background: linear-gradient(135deg, #79ccb3, #56b394); color: white; }
+.testcycle-tile .metric-four-icon  { background: linear-gradient(135deg, #a78bfa, #7c3aed); color: white; }
 
-/* Incident image — fills the 44px circle, shown as-is from Azure */
-.incident-tile-img {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
-    display: block;
+/* Incident image */
+.incident-tile-img { width: 42px; height: 42px; object-fit: contain; display: block; }
+
+.metric-four-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
-.metric-four-content { flex: 1; }
-.metric-four-value { font-size: 1.9rem; font-weight: 700; color: #172b4d; line-height: 1; }
-.metric-four-label { font-size: 0.78rem; color: #5e6c84; margin-top: 0.35rem; font-weight: 500; }
+.metric-four-label { font-size: 1.2rem; font-weight: 600; color: #172b4d; }
+.metric-four-value { font-size: 2rem; font-weight: 700; color: #172b4d; }
+
+@media (max-width: 1100px) { .metrics-four-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .metrics-four-row { grid-template-columns: repeat(2, 1fr); } }
 
 /* ============================================================
    MULTI-SELECT DROPDOWN
@@ -485,16 +490,19 @@ body {
 .closed-tag  { background: #f4f5f7; color: #5e6c84; }
 
 /* ============================================================
-   CHARTS LAYOUT
+   CHARTS LAYOUT — uniform height across all 4 chart cards
    ============================================================ */
 .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; margin-bottom: 1.6rem; }
 .components-heat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; margin-bottom: 1.6rem; }
 
-.chart-card {
+/* All chart cards same fixed height */
+.chart-card,
+.heat-chart-container {
     padding: 1.2rem 1.2rem 1.4rem;
     display: flex;
     flex-direction: column;
-    min-height: 400px;
+    height: 420px;        /* fixed — all 4 charts equal */
+    overflow: hidden;
 }
 .chart-title {
     font-weight: 700;
@@ -512,12 +520,6 @@ body {
 .chart-canvas-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 240px; }
 .full-width-canvas { flex: 1; min-height: 240px; position: relative; }
 
-.heat-chart-container {
-    padding: 1.2rem 1.2rem 1.4rem;
-    display: flex;
-    flex-direction: column;
-    min-height: 400px;
-}
 .heat-chart-wrapper { min-height: 240px; position: relative; flex: 1; }
 
 canvas { max-height: 280px; width: 100%; }

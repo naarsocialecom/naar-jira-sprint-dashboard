@@ -1,6 +1,6 @@
 // ============================================================
 // SPRINTS.JS — Sprint selector, checklist rendering, data fetch
-// Default: active sprint. If no active → last closed sprint.
+// Isolated: change only this file for sprint selector changes.
 // ============================================================
 
 import { State } from './state.js';
@@ -14,24 +14,12 @@ export async function fetchSprints() {
         const data = await response.json();
         State.allSprintsList = sortSprints(data.values || []);
 
-        State.selectedSprintIds.clear();
-
         const activeSprints = State.allSprintsList.filter(s => s.state === 'active');
+        State.selectedSprintIds.clear();
         if (activeSprints.length > 0) {
-            // ── Active sprints exist → select them all as default ──
             activeSprints.forEach(sp => State.selectedSprintIds.add(sp.id));
-        } else {
-            // ── No active sprint → pick the most recently closed one ──
-            const closedSprints = State.allSprintsList
-                .filter(s => s.state === 'closed' && s.endDate)
-                .sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
-
-            if (closedSprints.length > 0) {
-                State.selectedSprintIds.add(closedSprints[0].id);
-            } else if (State.allSprintsList.length > 0) {
-                // Ultimate fallback: first sprint in list
-                State.selectedSprintIds.add(State.allSprintsList[0].id);
-            }
+        } else if (State.allSprintsList.length > 0) {
+            State.selectedSprintIds.add(State.allSprintsList[0].id);
         }
 
         renderSprintChecklist();
@@ -170,6 +158,7 @@ export function setupSprintEventListeners() {
             document.getElementById('sprintDropdownMenu')?.classList.remove('show');
         });
     }
+    // Epic search is wired in dashboard.js to avoid circular imports
 }
 
 function showError(message) {

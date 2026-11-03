@@ -2,7 +2,7 @@
 // HELPERS.JS — Pure utility functions, no DOM, no side-effects
 // ============================================================
 
-export const ISSUE_TYPE_ORDER = ['Story', 'Improvement', 'Bug', 'Incident'];
+export const ISSUE_TYPE_ORDER = ['Story', 'Improvement', 'Bug', 'Incident', 'Task'];
 export const PRIORITY_ORDER   = ['Critical', 'High', 'Medium', 'Low', 'Lowest'];
 export const API_BASE         = '/api';
 

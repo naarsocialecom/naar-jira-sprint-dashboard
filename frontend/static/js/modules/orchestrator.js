@@ -8,7 +8,7 @@ import { updateIssueBarChart }      from '../charts/chart-issue-type.js';
 import { updatePriorityDonutChart } from '../charts/chart-priority.js';
 import { updateComponentBarChart }  from '../charts/chart-component.js';
 import { updateHeatClusteredChart } from '../charts/chart-heat.js';
-import { updatePlatformBreakdown }  from './platform.js';
+import { updatePlatformBreakdown, initEpicStatusFilter } from './platform.js';
 import { buildEpicTableData }       from './epic-table.js';
 
 export function refreshAllChartsAndMetrics() {
@@ -50,6 +50,8 @@ export function refreshAllChartsAndMetrics() {
     safeRun('HeatChart',          () => updateHeatClusteredChart(heatData));
     safeRun('PlatformBreakdown',  () => updatePlatformBreakdown());
     safeRun('EpicTable',          () => buildEpicTableData());
+    // Re-wire status filter with fresh status list
+    safeRun('StatusFilter',       () => initEpicStatusFilter());
 }
 
 function safeRun(name, fn) {
@@ -87,19 +89,21 @@ function updateCombinedMetrics() {
     rem.textContent = (w !== null && w >= 0) ? w : 'NA';
 }
 
-// ── Four metric tiles ────────────────────────────────────────
+// ── Five metric tiles ────────────────────────────────────────
 function updateFourMetricTiles() {
-    let bugs = 0, incidents = 0, improvements = 0, stories = 0;
+    let bugs = 0, incidents = 0, improvements = 0, stories = 0, testCycles = 0;
     State.currentIssues.forEach(issue => {
         const t = issue.fields?.issuetype?.name || '';
         if      (t === 'Bug')         bugs++;
         else if (t === 'Incident')    incidents++;
         else if (t === 'Improvement') improvements++;
         else if (t === 'Story')       stories++;
+        else if (t === 'Test Cycle' || t === 'Test' || t === 'Test Case') testCycles++;
     });
     const $ = id => document.getElementById(id);
     if ($('bugsCount'))         $('bugsCount').textContent         = bugs;
     if ($('incidentsCount'))    $('incidentsCount').textContent    = incidents;
     if ($('improvementsCount')) $('improvementsCount').textContent = improvements;
     if ($('storiesCountTile'))  $('storiesCountTile').textContent  = stories;
+    if ($('testCycleCount'))    $('testCycleCount').textContent    = testCycles;
 }

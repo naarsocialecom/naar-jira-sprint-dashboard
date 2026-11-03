@@ -19,7 +19,7 @@ export async function loadHighlights() {
             body.innerHTML = `<div class="highlights-error"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(data.error || 'Failed to load highlights')}</div>`;
             return;
         }
-        if (sumLbl && data.summary) sumLbl.textContent = `— ${data.summary}`;
+        // if (sumLbl && data.summary) sumLbl.textContent = `— ${data.summary}`;
 
         const highlights = data.highlights;
         if (!highlights) {

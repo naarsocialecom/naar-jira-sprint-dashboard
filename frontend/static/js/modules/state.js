@@ -1,5 +1,6 @@
 // ============================================================
 // STATE.JS — Single source of truth for all dashboard state
+// If you need to add a new global variable, it lives here.
 // ============================================================
 
 export const State = {
@@ -9,22 +10,22 @@ export const State = {
     sprintDetailsMap:  new Map(),
 };
 
+// Settings managed separately — see settings-panel.js
 export const Settings = {
-    sortOrder:   'high-to-low',
-    legendStyle: 'pills',
+    sortOrder: 'high-to-low',      // 'high-to-low' | 'low-to-high'
     barColors: {
-        issueType: ['#16ecac', '#25d6ee', '#d63a0a', '#ffaa00', '#4d4d4d', '#0755ae'],
-        component: ['#d03100', '#e07d03', '#00aac0', '#00b17c', '#484848', '#0563cf'],
-        heat:      { Bug: '#d03100', Incident: '#e07d03' },
+        issueType:  ['#16ecac', '#25d6ee', '#d63a0a', '#ffaa00', '#4d4d4d', '#0755ae'],
+        component:  ['#d03100', '#e07d03', '#00aac0', '#00b17c', '#484848', '#0563cf'],
+        heat:       { Bug: '#d03100', Incident: '#e07d03' },
     },
+    legendStyle: 'pills',          // 'pills' | 'table'
 };
 
 export function applySettings(incoming) {
-    if (incoming.sortOrder)   Settings.sortOrder   = incoming.sortOrder;
-    if (incoming.legendStyle) Settings.legendStyle = incoming.legendStyle;
+    if (incoming.sortOrder) Settings.sortOrder = incoming.sortOrder;
     if (incoming.barColors) {
-        if (incoming.barColors.issueType)    Settings.barColors.issueType = incoming.barColors.issueType;
-        if (incoming.barColors.component)    Settings.barColors.component = incoming.barColors.component;
+        Object.assign(Settings.barColors.issueType, incoming.barColors.issueType || []);
+        Object.assign(Settings.barColors.component, incoming.barColors.component || []);
         if (incoming.barColors.heatBug)      Settings.barColors.heat.Bug      = incoming.barColors.heatBug;
         if (incoming.barColors.heatIncident) Settings.barColors.heat.Incident = incoming.barColors.heatIncident;
     }
@@ -40,13 +41,12 @@ export function loadSettingsFromStorage() {
 export function saveSettingsToStorage() {
     try {
         localStorage.setItem('naar_dashboard_settings', JSON.stringify({
-            sortOrder:   Settings.sortOrder,
-            legendStyle: Settings.legendStyle,
+            sortOrder: Settings.sortOrder,
             barColors: {
-                issueType:    Settings.barColors.issueType,
-                component:    Settings.barColors.component,
-                heatBug:      Settings.barColors.heat.Bug,
-                heatIncident: Settings.barColors.heat.Incident,
+                issueType:   Settings.barColors.issueType,
+                component:   Settings.barColors.component,
+                heatBug:     Settings.barColors.heat.Bug,
+                heatIncident:Settings.barColors.heat.Incident,
             }
         }));
     } catch (_) {}
