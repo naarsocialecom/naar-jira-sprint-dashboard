@@ -220,8 +220,7 @@ class NdoService:
             return text if len(text) <= limit else text[:limit].rstrip() + '…'
 
         lines = [f"Ticket: {key} ({f['issuetype']['name']}) — {summary}",
-                 f"Final status today: {status}"
-                 + (f" · assignee {f['assignee']['displayName']}" if f.get('assignee') else '')]
+                 f"Final status today: {status}"]
         description = clean(adf_text(f.get('description')))
         if description:
             lines.append(f"Description: {description}")
@@ -237,7 +236,7 @@ class NdoService:
         for c in [c for c in comments if today(c.get('created'))] or comments[-3:]:
             body = clean(adf_text(c.get('body')))
             if body:
-                lines.append(f"Comment by {(c.get('author') or {}).get('displayName', 'someone')}: {body}")
+                lines.append(f"Comment: {body}")
         if not comments:
             lines.append('Comments: none')
 

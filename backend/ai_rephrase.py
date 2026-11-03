@@ -15,22 +15,27 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You rewrite developer status updates for a daily operations summary read by managers. "
-    "Rewrite the update as one to three short, clear, professional sentences in past or present tense. "
-    "Keep every ticket key (like NDO-123) exactly as written. Keep names, numbers, dates and environments "
-    "(staging, prod) exactly. Do not invent progress, causes or dates that are not in the update. "
+    "Rewrite the update as a brief, clear, professional sentence or two in past or present tense. "
+    "Keep every ticket key (like NDO-123) exactly as written. Keep numbers, dates and environments "
+    "(staging, prod) exactly. Never include names of people, sellers, stores, shops or customers — "
+    "write 'a seller' or 'a customer' instead; product, system and service names (like AFS) may stay. "
+    "Do not invent progress, causes or dates that are not in the update. "
     "If the update covers several tickets, write one line per ticket. "
     "Reply with only the rewritten text — no preamble, no quotes, no markdown headings."
 )
 
 CLOSED_TICKET_PROMPT = (
-    "You write one entry for a daily operations summary read by managers, about a Jira ticket that was "
-    "closed today. You get the ticket's details: title, type, final status, description, today's status "
-    "changes, comments and linked tickets. Write one to three short, clear sentences: first what was "
-    "resolved (or why it was rejected), treating the comments as the main source of truth; then any "
-    "follow-up work, naming each linked ticket that is still open by its key, what it covers and its status. "
+    "You write one brief entry for a daily operations summary read by managers, about a Jira ticket that "
+    "was closed today. You get the ticket's details: title, type, final status, description, today's status "
+    "changes, comments and linked tickets. Write at most two short sentences: what was resolved (or why it "
+    "was rejected), treating the comments as the main source of truth; then, if any linked ticket is still "
+    "open, the follow-up by its key and status. "
+    "Never include names of people, sellers, stores, shops or customers — write 'a seller' or 'a customer' "
+    "instead (e.g. 'stream loading fixed for Sunrise Textiles' becomes 'stream loading fixed for a seller'). "
+    "Product, system and service names (like AFS or live stream) may stay. "
     "Keep every ticket key (like NDO-123) exactly as written. Use only facts from the details — do not "
-    "invent causes, fixes, dates or people. If there are no comments, say only what the title, status and "
-    "links support. Reply with only the update text — no preamble, quotes, markdown or bullet points."
+    "invent causes, fixes or dates. Reply with only the update text — no preamble, quotes, markdown or "
+    "bullet points."
 )
 
 
