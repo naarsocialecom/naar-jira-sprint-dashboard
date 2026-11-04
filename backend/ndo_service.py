@@ -13,12 +13,14 @@ Daily flow (times in REPORT_TIMEZONE):
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+import hashlib
+import math
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple
 
 from zoneinfo import ZoneInfo
 
-from ai_rephrase import CLOSED_TICKET_PROMPT, SYSTEM_PROMPT, prompt_id, rephrase, ticket_keys
+from ai_rephrase import CLOSED_TICKET_PROMPT, DIGEST_PROMPT, SYSTEM_PROMPT, prompt_id, rephrase, summarize, ticket_keys
 from config import Config
 from dashboard_snapshot import SnapshotError, capture_dashboard
 from jira_apis import JiraClient
@@ -64,6 +66,24 @@ class NdoService:
 
     def start_of_today(self) -> datetime:
         return self.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def resolve_day(self, day: str = None) -> str:
+        """Validated 'YYYY-MM-DD' (default today); past days up to NDO_HISTORY_DAYS back."""
+        if not day:
+            return self.today()
+        try:
+            date = datetime.strptime(day, '%Y-%m-%d').date()
+        except ValueError:
+            raise ValueError('day must look like 2026-11-03')
+        today = self.now().date()
+        if date > today or (today - date).days > Config.NDO_HISTORY_DAYS:
+            raise ValueError(f'day must be within the last {Config.NDO_HISTORY_DAYS} days')
+        return day
+
+    def day_window(self, day: str):
+        """[start, end) of a calendar day in REPORT_TIMEZONE."""
+        start = datetime.strptime(day, '%Y-%m-%d').replace(tzinfo=self.tz)
+        return start, start + timedelta(days=1)
 
     # ── Jira ─────────────────────────────────────────────────
     @property
@@ -117,8 +137,9 @@ class NdoService:
         return {i['key']: normalize_issue(i, Config.JIRA_DOMAIN, Config.JIRA_FIELD_SEVERITY, now) for i in issues}
 
     # ── Report ───────────────────────────────────────────────
-    def report(self, refresh: bool = False) -> Dict:
-        day = self.today()
+    def report(self, refresh: bool = False, day: str = None) -> Dict:
+        day = self.resolve_day(day)
+        past = day != self.today()
         tickets = self.tickets(refresh)
         state = self.store.get_day(day)
         open_keys = {t['key'] for t in tickets}
@@ -126,7 +147,8 @@ class NdoService:
         report = build_report(
             tickets,
             day=day,
-            now=self.now(),
+            # A past day is labelled as that day; tickets are always Jira's current state
+            now=self.day_window(day)[1] - timedelta(seconds=1) if past else self.now(),
             issue_types=Config.NDO_ISSUE_TYPES,
             stale_days=Config.NDO_STALE_DAYS,
             notes=state['notes'],
@@ -138,21 +160,39 @@ class NdoService:
             ticket_info=self.ticket_info(sorted(mentioned - open_keys)),
         )
         report['slack'] = self.slack_status(state)
+        report['digest'] = self._digest(day, report['dev_updates'])
+        report['is_today'] = not past
         return report
 
-    def snapshot_png(self, refresh: bool = False) -> bytes:
+    def _digest(self, day: str, notes: List[Dict]) -> List[str]:
+        """The day's updates condensed to a few grouped lines; re-made only when the updates change."""
+        texts = [n['text'] for n in sorted(notes, key=lambda n: n.get('created_at') or '')]
+        if not texts:
+            return []
+        key = hashlib.sha1(('\n'.join(texts) + prompt_id(DIGEST_PROMPT)).encode('utf-8')).hexdigest()[:12]
+        saved = self.store.get_day(day).get('digest') or {}
+        if saved.get('key') == key:
+            return saved['lines']
+        lines, by_ai = summarize(texts)
+        if by_ai:   # a fallback list isn't stored, so the AI is tried again next time
+            self.store.set_value(day, 'digest', {'key': key, 'lines': lines})
+        return lines
+
+    def snapshot_png(self, refresh: bool = False, day: str = None) -> bytes:
         """Dashboard preview image. One browser at a time, reused for 60s, so the endpoint can't be used to pile up Chrome processes."""
         with self._shot_lock:
-            if self._shot_cache['png'] and time.time() - self._shot_cache['at'] < 60 and not refresh:
-                return self._shot_cache['png']
-            png = self.slack_image(self.report(refresh))
-            self._shot_cache = {'at': time.time(), 'png': png}
+            day = self.resolve_day(day)
+            cache = self._shot_cache
+            if cache['png'] and cache.get('day') == day and time.time() - cache['at'] < 60 and not refresh:
+                return cache['png']
+            png = self.slack_image(self.report(refresh, day=day))
+            self._shot_cache = {'at': time.time(), 'png': png, 'day': day}
             return png
 
     def slack_image(self, report: Dict) -> bytes:
         """Screenshot of the live dashboard; drawn summary card if the browser can't run."""
         try:
-            return capture_dashboard()
+            return capture_dashboard(None if report.get('is_today', True) else report['day'])
         except SnapshotError as e:
             logger.warning(f"{e} — using the drawn summary card instead")
             return render_snapshot(report)
@@ -166,19 +206,20 @@ class NdoService:
             'raw_text': text, 'rephrased': rephrased, 'tickets': ticket_keys(text),
         })
 
-    def sync_dev_updates(self) -> Dict:
-        """Read today's messages from the developer updates channel into Developer Updates."""
+    def sync_dev_updates(self, day: str = None) -> Dict:
+        """Read a day's messages (default today) from the developer updates channel into Developer Updates."""
         slack = self._slack()
         if not Config.SLACK_DEV_UPDATES_CHANNEL_ID:
             raise SlackNotConfigured('Set SLACK_DEV_UPDATES_CHANNEL_ID in backend/.env')
-        day = self.today()
+        day = self.resolve_day(day)
+        start, end = self.day_window(day)
         with self._sync_lock:
             try:
-                messages = slack.channel_messages(Config.SLACK_DEV_UPDATES_CHANNEL_ID,
-                                                  oldest=self.start_of_today().timestamp())
+                messages = slack.channel_messages(Config.SLACK_DEV_UPDATES_CHANNEL_ID, oldest=start.timestamp())
             except SlackError as e:
                 self.store.set_value(day, 'dev_sync_error', str(e))
                 raise
+            messages = [m for m in messages if float(m['ts']) < end.timestamp()]
 
             previous = {n['slack_ts']: n for n in self.store.notes(day) if n.get('slack_ts')}
             synced = []
@@ -207,14 +248,14 @@ class NdoService:
             return {**result, 'total': len(synced)}
 
     @staticmethod
-    def _closed_ticket_brief(issue: Dict, start: datetime) -> Tuple[str, str]:
-        """What the AI needs to describe a ticket closed today, plus a plain one-line fallback."""
+    def _closed_ticket_brief(issue: Dict, start: datetime, end: datetime = None) -> Tuple[str, str]:
+        """What the AI needs to describe a ticket closed on the day [start, end), plus a plain one-line fallback."""
         f = issue['fields']
         key, status, summary = issue['key'], f['status']['name'], f.get('summary') or ''
 
         def today(value) -> bool:
             dt = _parse_dt(value)
-            return bool(dt and dt >= start)
+            return bool(dt and dt >= start and (end is None or dt < end))
 
         def clean(text: str, limit: int = 400) -> str:
             text = ' '.join(text.split())
@@ -255,27 +296,32 @@ class NdoService:
             f" Follow-up: {', '.join(follow_ups)}." if follow_ups else '')
         return '\n'.join(lines), fallback
 
-    def sync_closed_tickets(self) -> Dict:
-        """Tickets closed (Done / Rejected) today → updates written from the summary and today's comments."""
-        day, start = self.today(), self.start_of_today()
+    def sync_closed_tickets(self, day: str = None) -> Dict:
+        """Tickets closed (Done / Rejected) on a day (default today) → updates from the summary and that day's comments."""
+        day = self.resolve_day(day)
+        start, end = self.day_window(day)
+        hours_back = math.ceil((self.now() - start).total_seconds() / 3600) + 1
         # "updated" is only a coarse pre-filter; the exact close time is checked below
         jql = ' AND '.join(filter(None, [
             f'project = "{Config.NDO_PROJECT_KEY}"',
             f'issuetype in ({_jql_list(Config.NDO_ISSUE_TYPES)})' if Config.NDO_ISSUE_TYPES else '',
             f'status in ({_jql_list(Config.NDO_EXCLUDED_STATUSES)})',
-            'updated >= -25h',
+            f'updated >= -{hours_back}h',
         ]))
+
+        def closed_on_day(issue) -> bool:
+            dt = _parse_dt(issue['fields'].get('statuscategorychangedate'))
+            return bool(dt and start <= dt < end)
 
         with self._sync_lock:
             candidates = self.jira.search_issues(jql, ['statuscategorychangedate'])
-            closed = [i['key'] for i in candidates
-                      if (_parse_dt(i['fields'].get('statuscategorychangedate')) or start) > start]
+            closed = [i['key'] for i in candidates if closed_on_day(i)]
             previous = {n['jira_key']: n for n in self.store.notes(day) if n.get('source') == 'jira'}
             items = []
             for key in closed:
                 issue = self.jira.get_issue(key, CLOSED_TICKET_FIELDS, expand='changelog')
                 f = issue['fields']
-                brief, fallback = self._closed_ticket_brief(issue, start)
+                brief, fallback = self._closed_ticket_brief(issue, start, end)
                 old = previous.get(key)
                 if old and old.get('raw_text') == brief and old.get('prompt_id') == prompt_id(CLOSED_TICKET_PROMPT):
                     text, rephrased = old['text'], old.get('rephrased', False)   # unchanged: no new AI call
@@ -296,8 +342,8 @@ class NdoService:
             self.store.set_value(day, 'closed_synced_at', datetime.now(timezone.utc).isoformat(timespec='seconds'))
             return {**result, 'total': len(items)}
 
-    def sync_all_updates(self, raise_errors: bool = False) -> Dict:
-        """Slack messages + tickets closed today. One source failing doesn't stop the other."""
+    def sync_all_updates(self, raise_errors: bool = False, day: str = None) -> Dict:
+        """Slack messages + tickets closed on a day (default today). One source failing doesn't stop the other."""
         jobs = []
         if Config.slack_enabled() and Config.SLACK_DEV_UPDATES_CHANNEL_ID:
             jobs.append(self.sync_dev_updates)
@@ -307,7 +353,7 @@ class NdoService:
         error = None
         for job in jobs:
             try:
-                for k, v in job().items():
+                for k, v in job(day).items():
                     totals[k] = totals.get(k, 0) + v
             except Exception as e:
                 logger.warning(f"{job.__name__} failed: {e}")
@@ -376,14 +422,14 @@ class NdoService:
         self.store.set_value(day, 'reminder_ts', resp['ts'])
         return {'ts': resp['ts'], 'updates': len(notes)}
 
-    def post_daily(self, force: bool = False) -> Dict:
+    def post_daily(self, force: bool = False, day: str = None) -> Dict:
         """
-        Post today's snapshot + summary. Skips (and says so in Slack) when there are no
-        developer updates for today. Refuses a second post unless force=True.
+        Post a day's (default today) snapshot + summary. Skips (and says so in Slack) when there
+        are no developer updates for that day. Refuses a second post unless force=True.
         """
         slack = self._slack()
-        day = self.today()
-        self.sync_all_updates()
+        day = self.resolve_day(day)
+        self.sync_all_updates(day=day)
 
         if not self.store.notes(day):
             state = self.store.get_day(day)
@@ -402,7 +448,7 @@ class NdoService:
             return {'posted': False, 'reason': 'already_posted',
                     'message': "Today's update was already posted (use force to post again)."}
         try:
-            report = self.report(refresh=True)
+            report = self.report(refresh=True, day=day)
             png = self.slack_image(report)
             filename = f"ndo-daily-{day}.png"
             title = f"Naar Data Operations · {report['date_label']}"

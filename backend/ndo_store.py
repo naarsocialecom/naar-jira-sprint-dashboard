@@ -85,6 +85,7 @@ class NdoStore:
             'dev_synced_at': entry.get('dev_synced_at'),
             'dev_sync_error': entry.get('dev_sync_error'),
             'closed_synced_at': entry.get('closed_synced_at'),
+            'digest': entry.get('digest'),
         }
 
     def add_note(self, day: str, text: str, author: str = '', source: str = 'dashboard',

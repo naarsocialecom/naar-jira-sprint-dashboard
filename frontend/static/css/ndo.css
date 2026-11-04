@@ -200,6 +200,33 @@
 .ndo-today--active { border-left-color: #0065ff; }
 .ndo-today--hold   { border-left-color: #ff991f; }
 
+/* Highlights: summary first, full list folded */
+.ndo-digest { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.ndo-digest li {
+    display: flex; gap: 0.65rem; align-items: flex-start; font-size: 0.95rem; line-height: 1.45; color: #172b4d;
+}
+.ndo-digest-dot {   /* neutral: a line can be done or still in progress */
+    flex-shrink: 0; width: 8px; height: 8px; margin-top: 0.5rem; border-radius: 50%;
+    background: #6554c0; box-shadow: 0 0 0 3px #eae6ff;
+}
+.ndo-digest a { color: #0747a6; font-weight: 700; text-decoration: none; }
+.ndo-digest a:hover { text-decoration: underline; }
+.ndo-dev-details { margin-top: 0.85rem; border-top: 1px solid #ebecf0; padding-top: 0.55rem; }
+.ndo-dev-details > summary {
+    cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.75rem; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ndo-dev-details > summary::-webkit-details-marker { display: none; }
+.ndo-dev-details > summary::before { content: '\25B8'; transition: transform 0.15s; }
+.ndo-dev-details[open] > summary::before { transform: rotate(90deg); }
+.ndo-dev-details[open] > .ndo-dev-list { margin-top: 0.45rem; }
+.ndo-dev-details .count-badge { background: #eae6ff; color: #403294; border-radius: 999px; padding: 0 8px; font-size: 0.72rem; }
+
+/* Past day (?day=): read-only */
+.ndo-today-link { display: none; }
+body.ndo-past .ndo-today-link { display: inline-flex; }
+body.ndo-past .ndo-actions-row, body.ndo-past .ndo-rag-select, body.ndo-past #ndoDevSyncBtn { display: none; }
+
 /* Chips */
 .ndo-chip {
     display: inline-block; padding: 1px 8px; border-radius: 999px;
@@ -334,6 +361,7 @@ body.ndo-modal-open { overflow: hidden; }
 /* ── Snapshot mode (?snapshot=1): what gets posted to Slack as an image ── */
 body.ndo-snapshot { padding: 0; }
 body.ndo-snapshot #ndoSnapshotArea { padding: 22px 26px 26px; background: #f4f5f7; }
+body.ndo-snapshot .ndo-dev-details,
 body.ndo-snapshot .ndo-nav-link,
 body.ndo-snapshot #refreshBtn,
 body.ndo-snapshot .highlights-toggle-btn,

@@ -20,6 +20,7 @@
             <div class="logo-text"><h1>Naar Data Operations</h1></div>
         </div>
         <div class="header-right">
+            <a class="ndo-nav-link ndo-today-link" href="/ndo"><i class="fas fa-arrow-left"></i> Back to today</a>
             <a class="ndo-nav-link" href="/"><i class="fas fa-columns"></i> Sprint Dashboard</a>
             <div class="badge-sprint">
                 <i class="fas fa-clock"></i>
@@ -82,8 +83,12 @@
                         <button type="button" class="ndo-icon-btn" id="ndoDevSyncBtn" title="Fetch latest developer updates from Slack" aria-label="Fetch developer updates"><i class="fas fa-sync-alt"></i></button>
                     </header>
                     <div class="ndo-panel-body">
-                        <div class="ndo-subhead">Developer updates <span class="count-badge" id="ndoDevCount">0</span></div>
-                        <ul id="ndoDevUpdates" class="ndo-dev-list"></ul>
+                        <!-- The day in a few lines (AI); the full list stays one click away and out of the Slack image -->
+                        <ul id="ndoDigest" class="ndo-digest"></ul>
+                        <details class="ndo-dev-details" id="ndoDevDetails">
+                            <summary>All developer updates <span class="count-badge" id="ndoDevCount">0</span></summary>
+                            <ul id="ndoDevUpdates" class="ndo-dev-list"></ul>
+                        </details>
                     </div>
                 </section>
 

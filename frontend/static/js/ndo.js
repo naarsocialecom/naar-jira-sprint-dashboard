@@ -10,6 +10,8 @@ const $ = id => document.getElementById(id);
 
 let report      = null;
 let typeFilter  = 'All';
+// ?day=YYYY-MM-DD shows a past day's summary (read-only)
+const VIEW_DAY  = new URLSearchParams(location.search).get('day');
 
 const SOURCE_ICONS = {
     slack:     '<i class="fab fa-slack" title="From Slack"></i>',
@@ -31,7 +33,10 @@ async function api(path, options = {}) {
 
 async function loadReport(refresh = false) {
     try {
-        const { data } = await api(`/report${refresh ? '?refresh=1' : ''}`);
+        const params = new URLSearchParams();
+        if (refresh) params.set('refresh', '1');
+        if (VIEW_DAY) params.set('day', VIEW_DAY);
+        const { data } = await api(`/report${params.toString() ? `?${params}` : ''}`);
         report = data;
         $('ndoError').classList.add('ndo-hidden');
         render();
@@ -66,7 +71,8 @@ function linkify(text) {
 
 function render() {
     const { totals, rag } = report;
-    $('ndoUpdatedLabel').textContent = `Updated ${timeLabel(report.generated_at)}`;
+    $('ndoUpdatedLabel').textContent = report.is_today ? `Updated ${timeLabel(report.generated_at)}` : `Past day · ${report.date_label}`;
+    document.body.classList.toggle('ndo-past', !report.is_today);
     $('ndoTitleCell').textContent = `Daily Update · ${report.date_label}`;
     $('ndoJql').textContent = report.jql;
 
@@ -100,11 +106,17 @@ function renderDevUpdates() {
         : (!s.enabled || !s.dev_channel_id) ? 'Slack updates channel not connected' : '';
     meta.className   = 'ndo-panel-meta ndo-panel-meta--warn';
 
+    $('ndoDevDetails').hidden = !updates.length;
     if (!updates.length) {
-        $('ndoDevUpdates').innerHTML = `<li class="ndo-dev-empty"><i class="fas fa-hourglass-half"></i>
-            <span><b>No developer updates yet today.</b> The ${escapeHtml(s.post_time)} Slack post is skipped until one is in.</span></li>`;
+        $('ndoDigest').innerHTML = report.is_today
+            ? `<li class="ndo-dev-empty"><i class="fas fa-hourglass-half"></i>
+                <span><b>No developer updates yet today.</b> The ${escapeHtml(s.post_time)} Slack post is skipped until one is in.</span></li>`
+            : '<li class="ndo-dev-empty"><i class="fas fa-inbox"></i><span>No developer updates were recorded for this day.</span></li>';
+        $('ndoDevUpdates').innerHTML = '';
         return;
     }
+    $('ndoDigest').innerHTML = (report.digest || []).map(line =>
+        `<li><i class="ndo-digest-dot" aria-hidden="true"></i><span>${linkify(line)}</span></li>`).join('');
     // Compact timeline: time · status dot · one-line update · small ticket tags
     $('ndoDevUpdates').innerHTML = updates.map(u => {
         const refs  = u.ticket_refs || [];
@@ -152,7 +164,7 @@ function renderBreakdowns() {
         if (st in byState) byState[st] += Object.values(byType).reduce((a, b) => a + b, 0);
     });
     $('ndoTodayStats').innerHTML = [
-        ['done', closed, 'Closed today'], ['active', byState.active, 'In progress'], ['hold', byState.hold, 'On hold'],
+        ['done', closed, report.is_today ? 'Closed today' : 'Closed that day'], ['active', byState.active, 'In progress'], ['hold', byState.hold, 'On hold'],
     ].map(([cls, n, label]) => `<div class="ndo-today-stat ndo-today--${cls}"><b>${n}</b><span>${label}</span></div>`).join('');
 
     $('ndoSeverity').innerHTML = Object.entries(report.breakdown.severity).map(([sev, n]) =>
@@ -354,7 +366,7 @@ function initPreviewModal() {
     };
     const open = () => {
         lastFocus = document.activeElement;
-        const src = `${NDO_API}/snapshot.png?t=${Date.now()}`;
+        const src = `${NDO_API}/snapshot.png?t=${Date.now()}${VIEW_DAY ? `&day=${encodeURIComponent(VIEW_DAY)}` : ''}`;
         img.hidden = true;
         body.classList.remove('is-zoomed');
         $('ndoModalZoom').innerHTML = '<i class="fas fa-search-plus"></i> Actual size';

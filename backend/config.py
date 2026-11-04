@@ -80,6 +80,8 @@ class Config:
     NDO_EXCLUDED_STATUSES = _list('NDO_EXCLUDED_STATUSES', 'Done,Rejected')
     JIRA_FIELD_SEVERITY = _get('JIRA_FIELD_SEVERITY')
     NDO_STALE_DAYS = _int('NDO_STALE_DAYS', 14)
+    # How far back a past day's summary can be viewed / re-synced (?day=YYYY-MM-DD, --day)
+    NDO_HISTORY_DAYS = _int('NDO_HISTORY_DAYS', 31)
     NDO_CACHE_SECONDS = _int('NDO_CACHE_SECONDS', 120)
     # Tickets moved to an excluded status (Done / Rejected) today become developer updates,
     # written by the AI from the ticket summary and its comments

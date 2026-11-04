@@ -331,17 +331,8 @@ def slack_text(report: Dict) -> str:
         f" · *{totals['unassigned']}* Unassigned",
     ]
 
-    if report['dev_updates']:
-        lines += ['', '*Developer updates*']
-        for note in report['dev_updates']:
-            refs = [r for r in note['ticket_refs'] if r.get('status')]
-            if len(refs) == 1:
-                status = f" · _{refs[0]['status']}_"
-            elif refs:
-                status = ' · _' + ', '.join(f"{r['key']} {r['status']}" for r in refs) + '_'
-            else:
-                status = ''
-            lines.append(f"• {_slack_rich(note['text'], report)}{status}")
+    if report.get('digest'):
+        lines += ['', '*Summary*'] + [f"• {_slack_rich(line, report)}" for line in report['digest']]
 
     critical = [t for t in report['key_tickets'] if _urgency(t) == 0]
     if critical:

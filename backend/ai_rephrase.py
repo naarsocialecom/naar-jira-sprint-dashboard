@@ -51,6 +51,17 @@ CLOSED_TICKET_PROMPT = (
 )
 
 
+DIGEST_PROMPT = (
+    "You condense one day's developer updates for an operations team into a summary read by managers "
+    "in Slack. You get the updates, one per line. Write at most 4 lines, each at most 14 words. Group "
+    "related items into one line with all their ticket keys (e.g. 'Address updates done for NDO-11, "
+    "NDO-12 and NDO-14'). Put incidents, fixes and anything still open first. Keep every ticket key "
+    "(like NDO-123) exactly as written. " + PRIVACY_RULES +
+    "Use only facts from the updates and never change whether something is done, in progress or "
+    "pending — 'working on' stays in progress. Reply with only the lines, one per line — no bullets, numbering, "
+    "headings or preamble."
+)
+
 def prompt_id(system_prompt: str) -> str:
     """Short fingerprint of a prompt, stored with each rephrased text so a prompt change re-rephrases it."""
     return hashlib.sha1(system_prompt.encode('utf-8')).hexdigest()[:10]
@@ -142,3 +153,29 @@ def rephrase(text: str, system_prompt: str = SYSTEM_PROMPT, fallback: str = None
     if missing:
         out = f"{', '.join(missing)}: {out}"
     return out, True
+
+
+def summarize(updates: List[str], limit: int = 4) -> Tuple[List[str], bool]:
+    """
+    One day's updates → at most `limit` short grouped lines. Returns (lines, summarized_by_ai);
+    without AI (or on failure) the first updates are returned as they are.
+    """
+    updates = [u.strip() for u in updates if u and u.strip()]
+    fallback = updates[:limit] + ([f"+{len(updates) - limit} more updates"] if len(updates) > limit else [])
+    if not updates or not Config.ai_enabled():
+        return fallback, False
+    try:
+        out = _call_endpoint('\n'.join(updates), DIGEST_PROMPT)
+    except AIError as e:
+        logger.warning(f"Summary failed, listing updates instead: {e}")
+        return fallback, False
+    lines = [re.sub(r'^\s*(?:[-*\u2022]|\d+[.)])\s*', '', line).strip() for line in out.splitlines()]
+    lines = [line for line in lines if line][:limit]
+    if not lines:
+        return fallback, False
+    # Never drop a ticket: anything the model left out goes on one extra line
+    covered = set(ticket_keys(' '.join(lines)))
+    missing = [k for k in ticket_keys(' '.join(updates)) if k not in covered]
+    if missing:
+        lines.append(f"Also updated: {', '.join(missing)}")
+    return lines, True

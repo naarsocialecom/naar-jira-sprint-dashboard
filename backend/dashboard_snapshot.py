@@ -16,13 +16,13 @@ class SnapshotError(RuntimeError):
     pass
 
 
-def capture_dashboard(timeout_ms: int = 45000) -> bytes:
+def capture_dashboard(day: str = None, timeout_ms: int = 45000) -> bytes:
     try:
         from playwright.sync_api import Error as PlaywrightError, sync_playwright
     except ImportError:
         raise SnapshotError('Playwright is not installed (pip install -r requirements.txt)')
 
-    url = f"{Config.SNAPSHOT_BASE_URL}/ndo?snapshot=1"
+    url = f"{Config.SNAPSHOT_BASE_URL}/ndo?snapshot=1" + (f"&day={day}" if day else '')
     try:
         with sync_playwright() as p:
             launch = {'headless': True}

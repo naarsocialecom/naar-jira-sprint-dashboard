@@ -64,13 +64,21 @@ def ndo_page():
 @ndo_bp.route('/api/ndo/report', methods=['GET'])
 def get_report():
     svc = service()
-    svc.maybe_sync_dev_updates()
-    return jsonify(svc.report(refresh=request.args.get('refresh') == '1'))
+    day = request.args.get('day') or None
+    if not day:   # a past day is shown as stored; only today pulls fresh updates
+        svc.maybe_sync_dev_updates()
+    try:
+        return jsonify(svc.report(refresh=request.args.get('refresh') == '1', day=day))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
 
 @ndo_bp.route('/api/ndo/snapshot.png', methods=['GET'])
 def get_snapshot():
-    png = service().snapshot_png(refresh=request.args.get('refresh') == '1')
+    try:
+        png = service().snapshot_png(refresh=request.args.get('refresh') == '1', day=request.args.get('day') or None)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     return Response(png, mimetype='image/png', headers={'Cache-Control': 'no-store'})
 
 

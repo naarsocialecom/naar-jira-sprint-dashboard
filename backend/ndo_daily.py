@@ -7,6 +7,9 @@ Scheduled entry point for the NDO daily Slack update.
     python ndo_daily.py post [--force]  # 7 PM: post snapshot + summary — skipped if no updates today
     python ndo_daily.py preview [file]  # write the snapshot PNG + print the message, no Slack
 
+    --day YYYY-MM-DD  (sync / post / preview) work on a past day instead of today, e.g. to
+                      re-write yesterday's updates with the current AI rules and preview them
+
 Run from cron or the systemd timers in deploy/ — not inside gunicorn, so the
 post happens exactly once no matter how many web workers are running.
 """
@@ -46,7 +49,8 @@ def main(argv=None) -> int:
     parser.add_argument('command', choices=['check', 'sync', 'remind', 'post', 'preview'])
     parser.add_argument('output', nargs='?', default='ndo-snapshot.png', help='preview: PNG output path')
     parser.add_argument('--force', action='store_true', help='post even if already posted today')
-    args = parser.parse_args(argv)
+    parser.add_argument('--day', help='sync / post / preview a past day (YYYY-MM-DD) instead of today')
+    args = parser.parse_intermixed_args(argv)   # allows: preview --day 2026-11-03 out.png
 
     if args.command == 'check':
         return check_slack()
@@ -54,14 +58,14 @@ def main(argv=None) -> int:
     svc = NdoService()
     try:
         if args.command == 'sync':
-            logger.info(f"Developer updates synced: {svc.sync_dev_updates()}")
+            logger.info(f"Developer updates synced: {svc.sync_all_updates(raise_errors=True, day=args.day)}")
         elif args.command == 'remind':
             logger.info(f"Reminder sent: {svc.send_reminder()}")
         elif args.command == 'post':
-            result = svc.post_daily(force=args.force)
+            result = svc.post_daily(force=args.force, day=args.day)
             logger.info(result.get('message') or 'Daily update posted')
         else:
-            report = svc.report(refresh=True)
+            report = svc.report(refresh=True, day=args.day)
             Path(args.output).write_bytes(svc.slack_image(report))
             print(slack_text(report))
             logger.info(f"Snapshot written to {Path(args.output).resolve()}")
@@ -71,6 +75,9 @@ def main(argv=None) -> int:
     except SlackError as e:
         logger.error(str(e))
         return 1
+    except ValueError as e:   # e.g. a bad --day
+        logger.error(str(e))
+        return 2
     except Exception:
         logger.exception('NDO daily job failed')
         return 1
