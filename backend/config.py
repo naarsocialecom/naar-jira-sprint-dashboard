@@ -105,6 +105,9 @@ class Config:
     SLACK_REMINDER_MENTION = _get('SLACK_REMINDER_MENTION') or _get('SLACK_PROMPT_MENTION')
     # Shown in the reminder text only — the schedule itself lives in cron / systemd timers
     NDO_POST_TIME_LABEL = _get('NDO_POST_TIME_LABEL', '7:00 PM IST')
+    # true: the daily post always goes out, saying "No updates from developers" on a quiet day.
+    # false: a day without developer updates is skipped (and you get a note saying so).
+    NDO_POST_WITHOUT_UPDATES = _bool('NDO_POST_WITHOUT_UPDATES', True)
     # Minimum seconds between automatic Slack fetches when the dashboard is opened
     NDO_DEV_SYNC_SECONDS = _int('NDO_DEV_SYNC_SECONDS', 300)
 

@@ -164,12 +164,16 @@ class NdoService:
         report['is_today'] = not past
         return report
 
+    @staticmethod
+    def _digest_key(texts: List[str]) -> str:
+        return hashlib.sha1(('\n'.join(texts) + prompt_id(DIGEST_PROMPT)).encode('utf-8')).hexdigest()[:12]
+
     def _digest(self, day: str, notes: List[Dict]) -> List[str]:
         """The day's updates condensed to a few grouped lines; re-made only when the updates change."""
         texts = [n['text'] for n in sorted(notes, key=lambda n: n.get('created_at') or '')]
         if not texts:
             return []
-        key = hashlib.sha1(('\n'.join(texts) + prompt_id(DIGEST_PROMPT)).encode('utf-8')).hexdigest()[:12]
+        key = self._digest_key(texts)
         saved = self.store.get_day(day).get('digest') or {}
         if saved.get('key') == key:
             return saved['lines']
@@ -205,6 +209,30 @@ class NdoService:
         return self.store.add_note(self.today(), clean, author=author, extra={
             'raw_text': text, 'rephrased': rephrased, 'tickets': ticket_keys(text),
         })
+
+    def copy_updates(self, from_day: str) -> Dict:
+        """Copy a past day's updates into today (as dashboard updates), e.g. to re-send a day that went out wrong."""
+        from_day, day = self.resolve_day(from_day), self.today()
+        if from_day == day:
+            raise ValueError('Pick a past day to copy from')
+        already = {(n.get('copied_from'), n['text']) for n in self.store.notes(day)}
+        copied = 0
+        for n in sorted(self.store.notes(from_day), key=lambda n: n.get('created_at') or ''):
+            if (from_day, n['text']) in already:
+                continue
+            # Only the final text travels: Jira briefs (raw_text) can hold customer details
+            self.store.add_note(day, n['text'], extra={
+                'raw_text': n['text'], 'rephrased': n.get('rephrased', False),
+                'tickets': n.get('tickets') or [], 'copied_from': from_day,
+            })
+            copied += 1
+        # Same updates → keep the source day's summary word for word (instead of a fresh AI wording)
+        source_digest = (self.store.get_day(from_day).get('digest') or {}).get('lines')
+        today_notes = sorted(self.store.notes(day), key=lambda n: n.get('created_at') or '')
+        if source_digest and all(n.get('copied_from') == from_day for n in today_notes):
+            self.store.set_value(day, 'digest', {'key': self._digest_key([n['text'] for n in today_notes]),
+                                                 'lines': source_digest})
+        return {'copied': copied, 'from': from_day, 'to': day}
 
     def sync_dev_updates(self, day: str = None) -> Dict:
         """Read a day's messages (default today) from the developer updates channel into Developer Updates."""
@@ -388,6 +416,7 @@ class NdoService:
             'dev_channel_id': Config.SLACK_DEV_UPDATES_CHANNEL_ID,
             'ai_enabled': Config.ai_enabled(),
             'post_time': Config.NDO_POST_TIME_LABEL,
+            'post_without_updates': Config.NDO_POST_WITHOUT_UPDATES,
             'reminder_sent': bool(state.get('reminder_ts')),
             # Only a post to the current summary channel counts (not an earlier test post elsewhere)
             'posted_at': state.get('slack_posted_at')
@@ -412,6 +441,9 @@ class NdoService:
         link = f" or add them on the <{Config.DASHBOARD_URL}/ndo|NDO dashboard>" if Config.DASHBOARD_URL else ''
         if notes:
             status = f"*{len(notes)}* developer update{'s' if len(notes) != 1 else ''} captured so far."
+        elif Config.NDO_POST_WITHOUT_UPDATES:
+            status = (":warning: *No developer updates yet* — if none come in, the summary goes out "
+                      "saying _No updates from developers_.")
         else:
             status = (":warning: *No developer updates yet* — the daily summary will *not* be posted "
                       "without today's updates.")
@@ -424,14 +456,15 @@ class NdoService:
 
     def post_daily(self, force: bool = False, day: str = None) -> Dict:
         """
-        Post a day's (default today) snapshot + summary. Skips (and says so in Slack) when there
-        are no developer updates for that day. Refuses a second post unless force=True.
+        Post a day's (default today) snapshot + summary. With no developer updates it either posts
+        "No updates from developers" (NDO_POST_WITHOUT_UPDATES) or skips and says so.
+        Refuses a second post unless force=True.
         """
         slack = self._slack()
         day = self.resolve_day(day)
         self.sync_all_updates(day=day)
 
-        if not self.store.notes(day):
+        if not self.store.notes(day) and not Config.NDO_POST_WITHOUT_UPDATES:
             state = self.store.get_day(day)
             if not state.get('skip_notice_ts') and Config.SLACK_REMINDER_CHANNEL_ID:
                 link = f" Then use *Post daily update* on the <{Config.DASHBOARD_URL}/ndo|NDO dashboard>." \

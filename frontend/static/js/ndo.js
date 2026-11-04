@@ -110,8 +110,8 @@ function renderDevUpdates() {
     if (!updates.length) {
         $('ndoDigest').innerHTML = report.is_today
             ? `<li class="ndo-dev-empty"><i class="fas fa-hourglass-half"></i>
-                <span><b>No developer updates yet today.</b> The ${escapeHtml(s.post_time)} Slack post is skipped until one is in.</span></li>`
-            : '<li class="ndo-dev-empty"><i class="fas fa-inbox"></i><span>No developer updates were recorded for this day.</span></li>';
+                <span><b>No updates from developers today.</b></span></li>`
+            : '<li class="ndo-dev-empty"><i class="fas fa-inbox"></i><span><b>No updates from developers on this day.</b></span></li>';
         $('ndoDevUpdates').innerHTML = '';
         return;
     }
@@ -195,7 +195,9 @@ function renderSlackStatus() {
         html = `<i class="fas fa-check-circle"></i> Today's update was posted at ${timeLabel(s.posted_at)}.`;
     } else if (!n) {
         cls  = 'ndo-slack-status--off';
-        html = `<i class="fas fa-hourglass-half"></i> No developer updates yet — the ${escapeHtml(s.post_time)} post will be skipped until updates come in.${s.reminder_sent ? ' Reminder sent.' : ''}`;
+        html = `<i class="fas fa-hourglass-half"></i> No developer updates yet — ${s.post_without_updates
+            ? `the ${escapeHtml(s.post_time)} post will say <i>No updates from developers</i> unless some come in.`
+            : `the ${escapeHtml(s.post_time)} post will be skipped until updates come in.`}${s.reminder_sent ? ' Reminder sent.' : ''}`;
     } else {
         html = `<i class="fab fa-slack"></i> ${n} developer update${n === 1 ? '' : 's'} ready · posts at ${escapeHtml(s.post_time)}${s.reminder_sent ? ' · reminder sent' : ''}.`;
     }
@@ -205,8 +207,9 @@ function renderSlackStatus() {
     $('ndoSlackSync').disabled   = !devReady;
     $('ndoDevSyncBtn').disabled  = !devReady;
     $('ndoSlackRemind').disabled = !s.enabled;
-    $('ndoSlackPost').disabled   = !s.enabled || n === 0;
-    $('ndoPostHint').textContent = n === 0
+    const blocked = n === 0 && !s.post_without_updates;
+    $('ndoSlackPost').disabled   = !s.enabled || blocked;
+    $('ndoPostHint').textContent = blocked
         ? 'Disabled — add or fetch developer updates first.'
         : `Runs automatically at ${s.post_time}.`;
 }

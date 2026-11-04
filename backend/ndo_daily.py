@@ -6,6 +6,7 @@ Scheduled entry point for the NDO daily Slack update.
     python ndo_daily.py remind          # 6 PM: "1 hour left" reminder in the updates channel
     python ndo_daily.py post [--force]  # 7 PM: post snapshot + summary — skipped if no updates today
     python ndo_daily.py preview [file]  # write the snapshot PNG + print the message, no Slack
+    python ndo_daily.py copy --day D    # copy day D's updates into today (re-send a day that went out wrong)
 
     --day YYYY-MM-DD  (sync / post / preview) work on a past day instead of today, e.g. to
                       re-write yesterday's updates with the current AI rules and preview them
@@ -46,7 +47,7 @@ def check_slack() -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('command', choices=['check', 'sync', 'remind', 'post', 'preview'])
+    parser.add_argument('command', choices=['check', 'sync', 'remind', 'post', 'preview', 'copy'])
     parser.add_argument('output', nargs='?', default='ndo-snapshot.png', help='preview: PNG output path')
     parser.add_argument('--force', action='store_true', help='post even if already posted today')
     parser.add_argument('--day', help='sync / post / preview a past day (YYYY-MM-DD) instead of today')
@@ -59,6 +60,10 @@ def main(argv=None) -> int:
     try:
         if args.command == 'sync':
             logger.info(f"Developer updates synced: {svc.sync_all_updates(raise_errors=True, day=args.day)}")
+        elif args.command == 'copy':
+            if not args.day:
+                raise ValueError('copy needs --day YYYY-MM-DD (the day to copy from)')
+            logger.info(f"Updates copied into today: {svc.copy_updates(args.day)}")
         elif args.command == 'remind':
             logger.info(f"Reminder sent: {svc.send_reminder()}")
         elif args.command == 'post':

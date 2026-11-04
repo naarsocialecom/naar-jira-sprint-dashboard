@@ -331,8 +331,8 @@ def slack_text(report: Dict) -> str:
         f" · *{totals['unassigned']}* Unassigned",
     ]
 
-    if report.get('digest'):
-        lines += ['', '*Summary*'] + [f"• {_slack_rich(line, report)}" for line in report['digest']]
+    lines += ['', '*Summary*'] + ([f"• {_slack_rich(line, report)}" for line in report['digest']]
+                                  if report.get('digest') else ['• _No updates from developers today._'])
 
     critical = [t for t in report['key_tickets'] if _urgency(t) == 0]
     if critical:
