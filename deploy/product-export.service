@@ -8,9 +8,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=ubuntu
-Group=ubuntu
-WorkingDirectory=/opt/naar-live/product-export
+User=root
+Group=root
+WorkingDirectory=/root/naar-jira-sprint-dashboard/product-export
 # Settings come from product-export/.env (loaded by the app itself)
 ExecStart=/usr/bin/env node src/index.js
 NoNewPrivileges=true

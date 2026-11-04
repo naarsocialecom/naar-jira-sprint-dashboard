@@ -8,8 +8,8 @@ module.exports = {
       name: "naar-product-export",
       script: "src/index.js",
       cwd: __dirname,
-      // Every day at 09:00 server time. If the server runs on UTC, use "30 3 * * *" (= 09:00 IST).
-      cron_restart: "0 9 * * *",
+      // Every day at 11:00 server time. If the server runs on UTC, use "30 5 * * *" (= 11:00 IST).
+      cron_restart: "0 11 * * *",
       autorestart: false,
       instances: 1,
       exec_mode: "fork",

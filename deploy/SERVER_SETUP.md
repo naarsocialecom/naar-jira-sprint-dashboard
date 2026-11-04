@@ -124,7 +124,7 @@ What happens each day (IST):
 
 ---
 
-## 4d. Daily product report (`product-export/`, 9 AM IST)
+## 4d. Daily product report (`product-export/`, 11 AM IST)
 
 A separate Node.js job (no port, no domain, no Nginx). It reads products from MongoDB
 (read only) and active campaigns from Meta, then posts a dashboard image + Excel file to Slack

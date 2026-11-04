@@ -27,5 +27,5 @@ To link one to a seller, add it to `meta-campaign-sellers.json`:
 
 ## Schedule
 
-See `deploy/SERVER_SETUP.md` → section 4d (systemd timer, 9 AM IST). `ecosystem.config.js` is a PM2
+See `deploy/SERVER_SETUP.md` → section 4d (systemd timer, 11 AM IST). `ecosystem.config.js` is a PM2
 alternative. Use only one of them, or the report posts twice.
