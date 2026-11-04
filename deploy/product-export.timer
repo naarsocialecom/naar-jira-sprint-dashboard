@@ -1,0 +1,11 @@
+# 9 AM IST: daily product report to Slack.
+[Unit]
+Description=Product report — post daily to Slack
+
+[Timer]
+OnCalendar=*-*-* 09:00:00 Asia/Kolkata
+Persistent=false
+Unit=product-export.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,18 @@
+# Daily product + stock report (product-export/): reads MongoDB and Meta, posts
+# the dashboard image + Excel to Slack, deletes yesterday's post. Runs once and exits.
+# Triggered by product-export.timer.
+[Unit]
+Description=Naar daily product report to Slack
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/naar-live/product-export
+# Settings come from product-export/.env (loaded by the app itself)
+ExecStart=/usr/bin/env node src/index.js
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true

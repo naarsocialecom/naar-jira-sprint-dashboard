@@ -124,6 +124,35 @@ What happens each day (IST):
 
 ---
 
+## 4d. Daily product report (`product-export/`, 9 AM IST)
+
+A separate Node.js job (no port, no domain, no Nginx). It reads products from MongoDB
+(read only) and active campaigns from Meta, then posts a dashboard image + Excel file to Slack
+and deletes the previous day's post. Details: `product-export/README.md`.
+
+```bash
+# Node 18+ is needed (node -v). Then:
+cd /opt/naar-live/product-export
+npm ci --omit=dev
+cp .env.example .env && chmod 600 .env && nano .env    # MongoDB, Slack, Meta values
+npm run export:dry                                      # test: builds files, sends nothing
+```
+Add the server's IP in MongoDB Atlas → Network Access, or the run can't connect.
+
+Schedule it — **either** the systemd timer (recommended, same as NDO):
+```bash
+sudo cp /opt/naar-live/deploy/product-export.service /opt/naar-live/deploy/product-export.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now product-export.timer
+systemctl list-timers product-export.timer
+sudo systemctl start product-export.service     # run once now
+journalctl -u product-export -n 50              # logs
+```
+**or** PM2: `cd /opt/naar-live/product-export && pm2 start ecosystem.config.js && pm2 save`
+(the time in that file is server time). Don't use both.
+
+---
+
 ## 4c. Production checklist (do these before go-live)
 
 - [ ] `backend/.env` on the server: `APP_ENV=production`, `DEBUG=false`, a fresh `SECRET_KEY`,
