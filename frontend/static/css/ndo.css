@@ -177,7 +177,7 @@
 .ndo-note-del:hover { color: #de350b; }
 
 /* Severity tiles */
-.ndo-sev-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.45rem; }
+.ndo-sev-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.45rem; }
 .ndo-sev {
     background: #f7f8fa; border-radius: 10px; padding: 0.5rem 0.3rem;
     text-align: center; border-top: 4px solid #c1c7d0;

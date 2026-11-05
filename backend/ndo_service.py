@@ -27,7 +27,7 @@ from jira_apis import JiraClient
 from ndo_report import _parse_dt, adf_text, build_report, normalize_issue, slack_text
 from ndo_snapshot import render_snapshot
 from ndo_store import NdoStore
-from slack_client import SlackClient, SlackError
+from slack_client import SlackClient, SlackError, is_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -486,7 +486,11 @@ class NdoService:
             filename = f"ndo-daily-{day}.png"
             title = f"Naar Data Operations · {report['date_label']}"
             posted = False
-            if Config.SLACK_BOT_NAME:
+            if is_user_id(Config.SLACK_CHANNEL_ID):
+                # A person (DM): only chat.postMessage takes a user ID, the file-share call needs a channel
+                slack.post_image_message(png, filename, title, slack_text(report))
+                posted = True
+            elif Config.SLACK_BOT_NAME:
                 try:
                     slack.post_image_message(png, filename, title, slack_text(report))
                     posted = True

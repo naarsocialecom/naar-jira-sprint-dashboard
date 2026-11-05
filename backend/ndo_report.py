@@ -12,6 +12,8 @@ from typing import Dict, List, Optional
 
 PRIORITY_ORDER = ['Critical', 'Highest', 'High', 'Medium', 'Low', 'Lowest', 'None']
 SEVERITY_ORDER = ['Sev-0', 'Sev-1', 'Sev-2', 'Sev-3', 'Not set']
+# Always shown (as 0 when empty); Sev-3 only appears when an incident has it
+SEVERITY_ALWAYS = ['Sev-0', 'Sev-1', 'Sev-2', 'Not set']
 URGENT_PRIORITIES = {'Critical', 'Highest', 'High'}
 CRITICAL_PRIORITIES = {'Critical', 'Highest'}
 CRITICAL_SEVERITIES = {'Sev-0', 'Sev-1'}
@@ -256,7 +258,7 @@ def build_report(tickets: List[Dict], *, day: str, now: datetime, issue_types: L
         priority[p] = {ty: sum(1 for t in tickets if t['type'] == ty and t['priority'] == p) for ty in types}
 
     severity_counter = Counter(t['severity'] for t in tickets if t['type'] == INCIDENT)
-    for s in SEVERITY_ORDER:
+    for s in SEVERITY_ALWAYS:
         severity_counter.setdefault(s, 0)
 
     status = OrderedDict()

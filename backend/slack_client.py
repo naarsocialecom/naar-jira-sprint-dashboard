@@ -40,6 +40,11 @@ class SlackError(RuntimeError):
         super().__init__(f"Slack error '{code}'{': ' + detail if detail else ''}{' — ' + hint if hint else ''}")
 
 
+def is_user_id(target: str) -> bool:
+    """A member ID (U…/W…) means a direct message to that person, not a channel."""
+    return bool(target) and target[0] in 'UW'
+
+
 class SlackClient:
     def __init__(self, token: str = None, channel_id: str = None):
         self.token = token or Config.SLACK_BOT_TOKEN
@@ -164,6 +169,10 @@ class SlackClient:
         for label, channel in channels.items():
             if not channel:
                 problems.append(f"{label}: channel ID not set in .env")
+                continue
+            if is_user_id(channel):
+                # Posting to a person needs only chat:write; there is no channel history to read
+                logger.info(f"{label} ({channel}): direct message to a person")
                 continue
             try:
                 self._call('conversations.history', http='GET', params={'channel': channel, 'limit': 1})

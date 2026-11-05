@@ -184,8 +184,8 @@ function renderDevUpdates() {
 }
 
 const URGENT = new Set(['Critical', 'Highest', 'High']);
-// Jira's priority scheme, highest first
-const JIRA_PRIORITIES = ['Critical', 'High', 'Medium', 'Low', 'Lowest'];
+// Priorities always shown for incidents; Low / Lowest (or any other) appear only when an incident has them
+const JIRA_PRIORITIES = ['Critical', 'High', 'Medium'];
 
 // done / active / hold / todo — drives the timeline dot and tag colours
 function ticketState(status) {
@@ -230,7 +230,7 @@ function renderBreakdowns() {
     const note = `· ${incidents} incident${incidents === 1 ? '' : 's'}`;
     $('ndoSevNote').textContent  = note;
     $('ndoPrioNote').textContent = note;
-    // Jira's priority list, always all five (zeros greyed), plus any other priority an incident has
+    // Critical / High / Medium always (zeros greyed), plus any other priority an incident actually has
     const counts = Object.fromEntries(Object.entries(report.breakdown.priority).map(([name, byType]) => [name, byType.Incident || 0]));
     const rows  = [...JIRA_PRIORITIES, ...Object.keys(counts).filter(p => !JIRA_PRIORITIES.includes(p) && counts[p])]
         .map(name => [name, counts[name] || 0]);
