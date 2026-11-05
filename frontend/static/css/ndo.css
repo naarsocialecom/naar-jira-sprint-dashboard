@@ -37,6 +37,19 @@
 }
 .ndo-tile-value { font-size: 1.9rem; font-weight: 700; line-height: 1; color: #172b4d; }
 .ndo-tile-label { font-size: 0.78rem; color: #5e6c84; margin-top: 0.35rem; font-weight: 500; }
+/* Split row under a tile: donut + counts per part */
+.ndo-tile { flex-wrap: wrap; align-content: center; }
+.ndo-tile-split {
+    flex-basis: 100%; display: flex; align-items: center; gap: 0.6rem;
+    border-top: 1px solid #f0f1f4; padding-top: 0.6rem; margin-top: 0.1rem;
+}
+.ndo-donut { width: 30px; height: 30px; flex-shrink: 0; }
+.ndo-split-legend { display: flex; flex-wrap: wrap; gap: 0.15rem 0.8rem; font-size: 0.74rem; color: #5e6c84; }
+.ndo-split-legend span { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; cursor: default; }
+.ndo-split-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.ndo-split-legend b { color: #172b4d; font-weight: 700; }
+.ndo-split-legend .is-zero, .ndo-split-legend .is-zero b { color: #c1c7d0; }
+.ndo-split-legend .is-zero i { background: #dfe1e6 !important; }
 .ndo-tile--incident   .ndo-tile-icon { background: linear-gradient(135deg, #ff7452, #de350b); }
 .ndo-tile--ops        .ndo-tile-icon { background: linear-gradient(135deg, #4c9aff, #0052cc); }
 .ndo-tile--critical   .ndo-tile-icon { background: linear-gradient(135deg, #ffc400, #ff8b00); }
@@ -183,22 +196,32 @@
 .ndo-bar-label { font-weight: 600; color: #42526e; }
 .ndo-bar-track { height: 10px; background: #f0f1f4; border-radius: 999px; overflow: hidden; }
 .ndo-bar-fill { height: 100%; border-radius: 999px; background: #a5adba; }
-.ndo-bar--Critical, .ndo-bar--Highest { background: #de350b; }
-.ndo-bar--High   { background: #ff8b00; }
-.ndo-bar--Medium { background: #ffc400; }
-.ndo-bar--Low, .ndo-bar--Lowest { background: #36b37e; }
+/* Jira's priority colours */
+.ndo-bar--Critical, .ndo-bar--Highest { background: #cd4425; }
+.ndo-bar--High   { background: #e2647a; }
+.ndo-bar--Medium { background: #e8994a; }
+.ndo-bar--Low    { background: #707070; }
+.ndo-bar--Lowest { background: #a0a0a0; }
 .ndo-bar-value { text-align: right; font-weight: 700; }
+.ndo-bar-row.is-zero .ndo-bar-label, .ndo-bar-row.is-zero .ndo-bar-value { color: #c1c7d0; }
 
-.ndo-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45rem; }
-.ndo-today-stat {
-    display: flex; align-items: baseline; gap: 0.45rem; background: #f7f8fa; border-radius: 10px;
-    padding: 0.55rem 0.7rem; border-left: 4px solid #c1c7d0;
+.ndo-today-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ndo-today-table thead th {
+    font-size: 0.7rem; font-weight: 700; color: #6b778c; text-align: right; padding: 0 0.6rem 0.35rem;
 }
-.ndo-today-stat b { font-size: 1.3rem; line-height: 1; color: #172b4d; }
-.ndo-today-stat span { font-size: 0.74rem; color: #42526e; font-weight: 600; }
-.ndo-today--done   { border-left-color: #36b37e; }
-.ndo-today--active { border-left-color: #0065ff; }
-.ndo-today--hold   { border-left-color: #ff991f; }
+.ndo-today-table tbody tr { border-top: 1px solid #ebecf0; }
+.ndo-today-table tbody th {
+    text-align: left; font-weight: 600; color: #42526e; padding: 0.45rem 0; display: flex; align-items: center; gap: 0.5rem;
+}
+.ndo-today-table tbody th i { width: 4px; height: 16px; border-radius: 2px; background: #c1c7d0; }
+.ndo-today-table td {
+    text-align: right; font-weight: 700; font-size: 1.05rem; color: #172b4d; padding: 0.45rem 0.6rem;
+    font-variant-numeric: tabular-nums; cursor: default; width: 28%;
+}
+.ndo-today-table td.is-zero { color: #c1c7d0; font-weight: 600; }
+.ndo-today-table .ndo-today--done   th i { background: #36b37e; }
+.ndo-today-table .ndo-today--active th i { background: #0065ff; }
+.ndo-today-table .ndo-today--hold   th i { background: #ff991f; }
 
 /* Highlights: summary first, full list folded */
 .ndo-digest { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -362,6 +385,7 @@ body.ndo-modal-open { overflow: hidden; }
 body.ndo-snapshot { padding: 0; }
 body.ndo-snapshot #ndoSnapshotArea { padding: 22px 26px 26px; background: #f4f5f7; }
 body.ndo-snapshot .ndo-dev-details,
+body.ndo-snapshot #ndoTodayHint,
 body.ndo-snapshot .ndo-nav-link,
 body.ndo-snapshot #refreshBtn,
 body.ndo-snapshot .highlights-toggle-btn,

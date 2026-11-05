@@ -37,15 +37,20 @@
     <!-- TILES -->
     <div class="ndo-tiles" id="ndoTiles">
         <div class="ndo-tile ndo-tile--incident"><div class="ndo-tile-icon"><i class="fas fa-fire-alt"></i></div>
-            <div><div class="ndo-tile-value" id="tileIncident">–</div><div class="ndo-tile-label">Open Incidents</div></div></div>
+            <div><div class="ndo-tile-value" id="tileIncident">–</div><div class="ndo-tile-label">Open Incidents</div></div>
+            <div class="ndo-tile-split" id="splitIncident"></div></div>
         <div class="ndo-tile ndo-tile--ops"><div class="ndo-tile-icon"><i class="fas fa-cogs"></i></div>
-            <div><div class="ndo-tile-value" id="tileOps">–</div><div class="ndo-tile-label">Open Operations</div></div></div>
+            <div><div class="ndo-tile-value" id="tileOps">–</div><div class="ndo-tile-label">Open Operations</div></div>
+            <div class="ndo-tile-split" id="splitOps"></div></div>
         <div class="ndo-tile ndo-tile--critical"><div class="ndo-tile-icon"><i class="fas fa-exclamation-triangle"></i></div>
-            <div><div class="ndo-tile-value" id="tileCritical">–</div><div class="ndo-tile-label">Critical / High</div></div></div>
+            <div><div class="ndo-tile-value" id="tileCritical">–</div><div class="ndo-tile-label">High-Priority Incidents</div></div>
+            <div class="ndo-tile-split" id="splitCritical"></div></div>
         <div class="ndo-tile ndo-tile--unassigned"><div class="ndo-tile-icon"><i class="fas fa-user-slash"></i></div>
-            <div><div class="ndo-tile-value" id="tileUnassigned">–</div><div class="ndo-tile-label">Unassigned</div></div></div>
+            <div><div class="ndo-tile-value" id="tileUnassigned">–</div><div class="ndo-tile-label">Unassigned Tickets</div></div>
+            <div class="ndo-tile-split" id="splitUnassigned"></div></div>
         <div class="ndo-tile ndo-tile--new"><div class="ndo-tile-icon"><i class="fas fa-plus-circle"></i></div>
-            <div><div class="ndo-tile-value" id="tileNew">–</div><div class="ndo-tile-label">New in last 24h</div></div></div>
+            <div><div class="ndo-tile-value" id="tileNew">–</div><div class="ndo-tile-label">New Tickets · 24h</div></div>
+            <div class="ndo-tile-split" id="splitNew"></div></div>
     </div>
 
     <!-- HIGHLIGHTS -->
@@ -98,11 +103,11 @@
                         <span class="ndo-panel-title"><i class="fas fa-chart-pie"></i> At a glance</span>
                     </header>
                     <div class="ndo-panel-body">
-                        <div class="ndo-subhead">Severity <span class="ndo-muted">· incidents</span></div>
+                        <div class="ndo-subhead">Severity <span class="ndo-muted" id="ndoSevNote">· incidents</span></div>
                         <div class="ndo-sev-row" id="ndoSeverity"></div>
-                        <div class="ndo-subhead">Priority <span class="ndo-muted">· all open tickets</span></div>
+                        <div class="ndo-subhead">Priority <span class="ndo-muted" id="ndoPrioNote">· incidents</span></div>
                         <div class="ndo-bars" id="ndoPriorityBars"></div>
-                        <div class="ndo-subhead">Today</div>
+                        <div class="ndo-subhead">Today <span class="ndo-muted" id="ndoTodayHint">· hover a number for its tickets</span></div>
                         <div class="ndo-today" id="ndoTodayStats"></div>
                     </div>
                 </section>

@@ -263,6 +263,20 @@ def build_report(tickets: List[Dict], *, day: str, now: datetime, issue_types: L
     for s, _ in Counter(t['status'] for t in tickets).most_common():
         status[s] = {ty: sum(1 for t in tickets if t['type'] == ty and t['status'] == s) for ty in types}
 
+    # Ticket keys behind the three split tiles (drawn as small donuts on the dashboard)
+    urgent_inc = [t for t in tickets if t['type'] == INCIDENT and t['priority'] in URGENT_PRIORITIES]
+    unassigned = [t for t in tickets if not t['assignee']]
+    new_24h = [t for t in tickets if t['created'] and datetime.fromisoformat(t['created']) >= now - timedelta(days=1)]
+    by_type_keys = lambda group: {ty: [t['key'] for t in group if t['type'] == ty] for ty in types}
+    splits = {
+        'critical_high': {
+            'Critical': [t['key'] for t in urgent_inc if t['priority'] in CRITICAL_PRIORITIES],
+            'High': [t['key'] for t in urgent_inc if t['priority'] not in CRITICAL_PRIORITIES],
+        },
+        'unassigned': by_type_keys(unassigned),
+        'new_24h': by_type_keys(new_24h),
+    }
+
     auto_rag = compute_rag(tickets, stale_days)
     level = rag_override or auto_rag['level']
 
@@ -278,11 +292,11 @@ def build_report(tickets: List[Dict], *, day: str, now: datetime, issue_types: L
         'totals': {
             'total': len(tickets),
             'by_type': {ty: by_type.get(ty, 0) for ty in types},
-            'critical_high': sum(1 for t in tickets if t['priority'] in URGENT_PRIORITIES
-                                 or t['severity'] in CRITICAL_SEVERITIES),
-            'unassigned': sum(1 for t in tickets if not t['assignee']),
-            'new_24h': sum(1 for t in tickets if t['created']
-                           and datetime.fromisoformat(t['created']) >= now - timedelta(days=1)),
+            # Incidents only, by Jira priority (operations tickets are triaged first)
+            'critical_high': len(urgent_inc),
+            'unassigned': len(unassigned),
+            'new_24h': len(new_24h),
+            'splits': splits,
         },
         'rag': {
             'level': level,
@@ -327,7 +341,7 @@ def slack_text(report: Dict) -> str:
                         for ty, n in totals['by_type'].items())
     lines = [
         f"*Naar Data Operations — {report['date_label']}*",
-        f"{RAG_EMOJI[rag['level']]} *{rag['label']}* · {counts} · *{totals['critical_high']}* Critical/High"
+        f"{RAG_EMOJI[rag['level']]} *{rag['label']}* · {counts} · *{totals['critical_high']}* high-priority incidents (Critical + High)"
         f" · *{totals['unassigned']}* Unassigned",
     ]
 

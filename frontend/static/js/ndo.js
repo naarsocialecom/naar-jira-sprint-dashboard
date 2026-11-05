@@ -81,6 +81,19 @@ function render() {
     $('tileCritical').textContent   = totals.critical_high;
     $('tileUnassigned').textContent = totals.unassigned;
     $('tileNew').textContent        = totals.new_24h;
+    const split = totals.splits || {};
+    // Open tickets by work status: started, not started, stuck
+    const byState = ty => {
+        const out = { active: [], todo: [], hold: [] };
+        (report.tickets || []).filter(t => t.type === ty).forEach(t => out[ticketState(t.status)]?.push(t.key));
+        return out;
+    };
+    const STATE_PARTS = { active: ['Active', '#0065ff'], todo: ['To do', '#97a0af'], hold: ['On hold', '#ff991f'] };
+    renderSplit('splitIncident', byState('Incident'),   STATE_PARTS);
+    renderSplit('splitOps',      byState('Operations'), STATE_PARTS);
+    renderSplit('splitCritical',   split.critical_high, { Critical: ['Critical', '#cd4425'], High: ['High', '#e2647a'] });
+    renderSplit('splitUnassigned', split.unassigned, TYPE_PARTS);
+    renderSplit('splitNew',        split.new_24h,    TYPE_PARTS);
 
     // RAG banner
     $('ndoRagCell').className = `ndo-rag-banner ndo-rag--${rag.level}`;
@@ -93,6 +106,33 @@ function render() {
     renderSlackStatus();
     renderTypeFilter();
     renderTickets();
+}
+
+const TYPE_PARTS = { Incident: ['Incidents', '#de350b'], Operations: ['Operations', '#0052cc'] };
+
+// Small donut + legend under a tile: how its number splits (e.g. incidents vs operations).
+// parts maps a key in `keysBy` to [label, colour]; hovering a legend item lists its tickets.
+function renderSplit(id, keysBy = {}, parts) {
+    const items = Object.entries(parts).map(([k, [label, color]]) => ({ label, color, keys: keysBy[k] || [] }));
+    const total = items.reduce((a, it) => a + it.keys.length, 0);
+    const C = 2 * Math.PI * 15;
+    let offset = 0;
+    const arcs = total ? items.filter(it => it.keys.length).map(it => {
+        const len = it.keys.length / total * C;
+        const arc = `<circle r="15" cx="20" cy="20" fill="none" stroke="${it.color}" stroke-width="7"
+            stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
+        offset += len;
+        return arc;
+    }).join('') : '';
+    $(id).innerHTML = `
+        <svg class="ndo-donut" viewBox="0 0 40 40" aria-hidden="true">
+            <circle r="15" cx="20" cy="20" fill="none" stroke="#ebecf0" stroke-width="7"/>
+            <g transform="rotate(-90 20 20)">${arcs}</g>
+        </svg>
+        <div class="ndo-split-legend">${items.map(it => `
+            <span class="${it.keys.length ? '' : 'is-zero'}"${it.keys.length ? ` title="${escapeHtml(it.keys.join(', '))}"` : ''}>
+                <i style="background:${it.color}"></i><b>${it.keys.length}</b> ${escapeHtml(it.label)}</span>`).join('')}
+        </div>`;
 }
 
 function renderDevUpdates() {
@@ -144,6 +184,8 @@ function renderDevUpdates() {
 }
 
 const URGENT = new Set(['Critical', 'Highest', 'High']);
+// Jira's priority scheme, highest first
+const JIRA_PRIORITIES = ['Critical', 'High', 'Medium', 'Low', 'Lowest'];
 
 // done / active / hold / todo — drives the timeline dot and tag colours
 function ticketState(status) {
@@ -156,28 +198,47 @@ function ticketState(status) {
 }
 
 function renderBreakdowns() {
-    // Today: closed (from tickets closed today) and how many open tickets are moving or stuck
-    const closed = (report.dev_updates || []).filter(u => u.source === 'jira').length;
-    const byState = { active: 0, hold: 0 };
-    Object.entries(report.breakdown.status).forEach(([status, byType]) => {
-        const st = ticketState(status);
-        if (st in byState) byState[st] += Object.values(byType).reduce((a, b) => a + b, 0);
+    // Today: closed / in progress / on hold, split into incidents and operations.
+    // Each number lists its ticket keys on hover.
+    const types = ['Incident', 'Operations'];
+    const keys  = { done: {}, active: {}, hold: {} };
+    types.forEach(ty => Object.keys(keys).forEach(st => { keys[st][ty] = []; }));
+    (report.dev_updates || []).filter(u => u.source === 'jira').forEach(u => {
+        const ref = (u.ticket_refs || [])[0];
+        if (ref && keys.done[ref.type]) keys.done[ref.type].push(ref.key);
     });
-    $('ndoTodayStats').innerHTML = [
-        ['done', closed, report.is_today ? 'Closed today' : 'Closed that day'], ['active', byState.active, 'In progress'], ['hold', byState.hold, 'On hold'],
-    ].map(([cls, n, label]) => `<div class="ndo-today-stat ndo-today--${cls}"><b>${n}</b><span>${label}</span></div>`).join('');
+    (report.tickets || []).forEach(t => {
+        const st = ticketState(t.status);
+        if (keys[st]?.[t.type]) keys[st][t.type].push(t.key);
+    });
+    const cell = list => `<td class="${list.length ? '' : 'is-zero'}"${list.length ? ` title="${escapeHtml(list.join(', '))}"` : ''}>${list.length}</td>`;
+    $('ndoTodayStats').innerHTML = `<table class="ndo-today-table">
+        <thead><tr><th></th><th>Incidents</th><th>Operations</th></tr></thead>
+        <tbody>${[
+            ['done',   report.is_today ? 'Closed today' : 'Closed that day'],
+            ['active', 'In progress'],
+            ['hold',   'On hold'],
+        ].map(([st, label]) => `<tr class="ndo-today--${st}"><th scope="row"><i aria-hidden="true"></i>${label}</th>${types.map(ty => cell(keys[st][ty])).join('')}</tr>`).join('')}
+        </tbody></table>`;
 
     $('ndoSeverity').innerHTML = Object.entries(report.breakdown.severity).map(([sev, n]) =>
         `<div class="ndo-sev ndo-sev--${chipClass(sev)}${n ? '' : ' is-zero'}"><b>${n}</b><span>${escapeHtml(sev)}</span></div>`
     ).join('');
 
-    const rows  = Object.entries(report.breakdown.priority)
-        .map(([name, byType]) => [name, Object.values(byType).reduce((a, b) => a + b, 0)]);
+    // Incidents only: operations tickets are reviewed first and become incidents when they matter
+    const incidents = report.totals.by_type.Incident ?? 0;
+    const note = `· ${incidents} incident${incidents === 1 ? '' : 's'}`;
+    $('ndoSevNote').textContent  = note;
+    $('ndoPrioNote').textContent = note;
+    // Jira's priority list, always all five (zeros greyed), plus any other priority an incident has
+    const counts = Object.fromEntries(Object.entries(report.breakdown.priority).map(([name, byType]) => [name, byType.Incident || 0]));
+    const rows  = [...JIRA_PRIORITIES, ...Object.keys(counts).filter(p => !JIRA_PRIORITIES.includes(p) && counts[p])]
+        .map(name => [name, counts[name] || 0]);
     const total = rows.reduce((a, [, n]) => a + n, 0) || 1;
     $('ndoPriorityBars').innerHTML = rows.map(([name, n]) => `
-        <div class="ndo-bar-row">
+        <div class="ndo-bar-row${n ? '' : ' is-zero'}">
             <span class="ndo-bar-label">${escapeHtml(name)}</span>
-            <div class="ndo-bar-track"><div class="ndo-bar-fill ndo-bar--${chipClass(name)}" style="width:${Math.max(2, n / total * 100).toFixed(1)}%"></div></div>
+            <div class="ndo-bar-track"><div class="ndo-bar-fill ndo-bar--${chipClass(name)}" style="width:${n ? Math.max(2, n / total * 100).toFixed(1) : 0}%"></div></div>
             <span class="ndo-bar-value">${n}</span>
         </div>`).join('');
 }

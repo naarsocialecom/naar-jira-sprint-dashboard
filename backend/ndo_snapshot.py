@@ -117,7 +117,7 @@ def render_snapshot(report: Dict) -> bytes:
     # Tiles
     totals = report['totals']
     tiles = [(f"Open {ty}{'s' if not ty.endswith('s') else ''}", n) for ty, n in totals['by_type'].items()][:2]
-    tiles += [('Critical / High', totals['critical_high']), ('Unassigned', totals['unassigned'])]
+    tiles += [('High-priority incidents', totals['critical_high']), ('Unassigned tickets', totals['unassigned'])]
     tile_w, gap, ty0 = (WIDTH - 64 - 3 * 14) / 4, 14, 124
     for i, (label, value) in enumerate(tiles):
         x0 = 32 + i * (tile_w + gap)
@@ -130,9 +130,9 @@ def render_snapshot(report: Dict) -> bytes:
 
     # Breakdown bars
     col_w = (WIDTH - 64 - 30) / 2
-    prio = [(p, sum(v.values()), PRIORITY_COLORS.get(p, '#a5adba'))
-            for p, v in report['breakdown']['priority'].items()]
-    _stacked_bar(d, 32, 222, int(col_w), 14, prio, 'Priority — all open tickets')
+    prio = [(p, v.get('Incident', 0), PRIORITY_COLORS.get(p, '#a5adba'))
+            for p, v in report['breakdown']['priority'].items() if v.get('Incident')]
+    _stacked_bar(d, 32, 222, int(col_w), 14, prio, 'Priority — incidents')
     sev = [(s, n, SEVERITY_COLORS.get(s, '#a5adba')) for s, n in report['breakdown']['severity'].items()]
     _stacked_bar(d, int(32 + col_w + 30), 222, int(col_w), 14, sev, 'Severity — incidents')
 
