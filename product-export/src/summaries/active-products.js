@@ -1,5 +1,5 @@
-// Daily summary for the active-products report: headline numbers, active Meta
-// campaigns matched to sellers, and the lowest-stock products by shop.
+// Daily summary for the Meta campaign stock report: the active Meta campaigns,
+// the stores they promote, and those stores' products below the stock threshold.
 // Returns { text, slackText, image }: plain text for email and logs, mrkdwn for
 // Slack, and the dashboard as an SVG string.
 const renderDashboard = require("./dashboard-image");
@@ -42,12 +42,12 @@ function bulletList(lines, more) {
   return lines.join("\n") + (more > 0 ? `\n_…and ${num(more)} more in the Excel file_` : "");
 }
 
-module.exports = function buildSummary({ title, rowCount, sheets, threshold, date, context = {} }) {
-  const lowStock = sheets.find((s) => s.name === "Low stock").rows;
+module.exports = function buildSummary({ title, threshold, date, context = {} }) {
   const meta = context.meta || { connected: false, campaignRows: [] };
-
+  const lowStock = context.lowStock || [];
+  const variantCount = context.variantCount || 0;
+  const storeCount = context.storeCount || 0;
   const outOfStock = lowStock.filter((r) => r.availableQuantity <= 0).length;
-  const lowStockInCampaigns = lowStock.filter((r) => r.metaCampaigns?.length);
 
   // Meta campaign -> its matched shops and their stock (campaignRows has one row per campaign x seller)
   const campaigns = new Map();
@@ -65,9 +65,8 @@ module.exports = function buildSummary({ title, rowCount, sheets, threshold, dat
     (a, b) => !a.shops.length - !b.shops.length || b.lowStock - a.lowStock || a.name.localeCompare(b.name),
   );
   const unmatched = campaignList.filter((c) => !c.shops.length);
-  const campaignSellerCount = new Set(meta.campaignRows.filter((r) => r.sellerId).map((r) => r.sellerId)).size;
 
-  // Shop -> number of low-stock variants
+  // Campaign store -> number of variants below the threshold
   const shops = new Map();
   for (const r of lowStock) {
     const shop = clean(r.shopName) || "Unknown shop";
@@ -88,49 +87,43 @@ module.exports = function buildSummary({ title, rowCount, sheets, threshold, dat
   const campaignLines = campaignList.slice(0, MAX_CAMPAIGNS).map((c) =>
     c.shops.length
       ? `• *${esc(cut(clean(c.name), 50))}* → ${esc(cut(c.shops.join(", "), 60))} - ${num(c.products)} active products, ` +
-        (c.lowStock ? `:warning: ${num(c.lowStock)} low-stock variants` : "stock OK")
-      : `• *${esc(cut(clean(c.name), 50))}* → _not matched to a seller (not used)_`,
+        (c.lowStock ? `:warning: ${num(c.lowStock)} below ${threshold}` : "stock OK")
+      : `• *${esc(cut(clean(c.name), 50))}* → _not matched to a store (not used)_`,
   );
-  const tabs = meta.connected ? "*Products*, *Low stock*, *Meta campaigns*, *Meta campaign products*" : "*Products*, *Low stock*";
   const slackText = [
-    `:bar_chart: *Daily product report · ${date}*`,
-    `*${num(rowCount)}* active variants  ·  :warning: *${num(lowStock.length)}* low stock (below ${threshold})  ·  ` +
-      `:red_circle: *${num(outOfStock)}* out of stock  ·  :mega: *${meta.connected ? num(campaigns.size) : "-"}* active Meta campaigns` +
-      (meta.connected ? ` (${num(campaignSellerCount)} sellers)` : ""),
+    `:mega: *Meta campaign stock report · ${date}*`,
+    `*${meta.connected ? num(campaigns.size) : "-"}* active Meta campaigns  ·  *${num(storeCount)}* stores  ·  ` +
+      `*${num(variantCount)}* products checked  ·  :warning: *${num(lowStock.length)}* below ${threshold}  ·  ` +
+      `:red_circle: *${num(outOfStock)}* out of stock`,
     "",
     "*Active Meta campaigns*",
     metaStatus ||
       (campaignLines.length ? bulletList(campaignLines, campaignList.length - MAX_CAMPAIGNS) : "_No active campaigns_"),
     ...(unmatched.length
       ? [
-          `:information_source: _${num(unmatched.length)} campaign(s) not matched: the campaign name has no shop name, ` +
-            "so it can't be linked to a seller's products and is left out of the stock numbers._",
+          `:information_source: _${num(unmatched.length)} campaign(s) not matched: the campaign name has no store name, ` +
+            "so its products can't be checked._",
         ]
       : []),
     "",
-    ...(meta.connected
-      ? [
-          "*Low stock in Meta campaign sellers* (lowest first)",
-          lowStockInCampaigns.length
-            ? bulletList(lowStockInCampaigns.slice(0, TOP_N).map((r) => stockLine(r)), lowStockInCampaigns.length - TOP_N)
-            : "_None, campaign sellers are all stocked_ :white_check_mark:",
-          "",
-        ]
-      : []),
-    "*Shops with the most low-stock variants:* " +
-      (topShops.length ? topShops.slice(0, 5).map(([shop, n]) => `${esc(cut(shop, 40))} (${num(n)})`).join(", ") : "none :white_check_mark:"),
+    `*Products below ${threshold} in campaign stores* (lowest first)`,
+    lowStock.length
+      ? bulletList(lowStock.slice(0, TOP_N).map((r) => stockLine(r)), lowStock.length - TOP_N)
+      : storeCount
+        ? `_None, every campaign store has ${threshold} or more of each product_ :white_check_mark:`
+        : "_No campaign stores to check_",
     "",
-    `:paperclip: Dashboard image and full Excel report attached (tabs ${tabs}).`,
+    `:paperclip: Dashboard image and Excel report attached (tabs *Meta campaigns*, *Below ${threshold} - campaign stores*, *Campaign store products*).`,
   ].join("\n");
 
   const image = renderDashboard({
     date,
     threshold,
-    rowCount,
+    variantCount,
+    storeCount,
     lowStock: lowStock.length,
     outOfStock,
-    shopCount: shops.size,
-    meta: { connected: meta.connected, error: meta.error, sellerCount: campaignSellerCount, unmatched: unmatched.length },
+    meta: { connected: meta.connected, error: meta.error, unmatched: unmatched.length },
     campaigns: campaignList,
     topShops,
   });
@@ -138,24 +131,17 @@ module.exports = function buildSummary({ title, rowCount, sheets, threshold, dat
   // Plain-text version for email and the console
   const text = [
     `${title} - ${date}`,
-    `Active product variants: ${num(rowCount)}`,
-    `Low stock (below ${threshold}): ${num(lowStock.length)} (out of stock: ${num(outOfStock)})`,
     metaProblem
       ? `Meta: ${metaProblem}`
-      : `Active Meta campaigns: ${num(campaigns.size)} (${num(campaignSellerCount)} sellers, ${num(unmatched.length)} not matched)`,
+      : `Active Meta campaigns: ${num(campaigns.size)} (${num(storeCount)} stores, ${num(unmatched.length)} not matched)`,
     ...campaignList.map((c) =>
       c.shops.length
-        ? `  - ${clean(c.name)} -> ${c.shops.join(", ")}: ${c.products} products, ${c.lowStock} low-stock variants`
-        : `  - ${clean(c.name)} -> NOT MATCHED (no shop name in the campaign name, not used)`,
+        ? `  - ${clean(c.name)} -> ${c.shops.join(", ")}: ${c.products} products, ${c.lowStock} below ${threshold}`
+        : `  - ${clean(c.name)} -> NOT MATCHED (no store name in the campaign name, not used)`,
     ),
-    ...(meta.connected
-      ? [
-          `Low stock in Meta campaign sellers: ${num(lowStockInCampaigns.length)}`,
-          ...lowStockInCampaigns.slice(0, TOP_N).map((r) => "  " + stockLine(r, { plain: true })),
-        ]
-      : []),
-    `Shops with the most low-stock variants:`,
-    ...topShops.slice(0, 5).map(([shop, n]) => `  - ${shop}: ${n}`),
+    `Products checked in campaign stores: ${num(variantCount)}`,
+    `Below ${threshold}: ${num(lowStock.length)} (out of stock: ${num(outOfStock)})`,
+    ...lowStock.slice(0, TOP_N).map((r) => "  " + stockLine(r, { plain: true })),
   ].join("\n");
 
   return { text, slackText, image };

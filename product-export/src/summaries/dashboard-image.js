@@ -1,4 +1,4 @@
-// Draws the daily product dashboard as an SVG (converted to PNG for Slack in
+// Draws the daily Meta campaign stock dashboard as an SVG (converted to PNG for Slack in
 // index.js). Static image, so every number is printed on it - no hover layer.
 // Colors: reference palette (dataviz skill) - series blue for magnitude bars,
 // status colors for stock health, each paired with a text label.
@@ -52,7 +52,7 @@ module.exports = function renderDashboard(s) {
   let y = PAD;
 
   // Title
-  out.push(text(PAD, y + 26, "Daily product report", { size: 28, weight: 700 }));
+  out.push(text(PAD, y + 26, "Meta campaign stock report", { size: 28, weight: 700 }));
   out.push(text(W - PAD, y + 26, s.date, { size: 18, fill: C.text2, anchor: "end" }));
   y += 56;
 
@@ -60,24 +60,24 @@ module.exports = function renderDashboard(s) {
   const gap = 16;
   const tileW = (INNER - gap * 3) / 4;
   const tiles = [
-    { label: "Active product variants", value: num(s.rowCount), note: "one per product variant" },
-    { label: `Low stock (below ${s.threshold})`, value: num(s.lowStock), note: `${pct(s.lowStock, s.rowCount)} of variants, ${num(s.shopCount)} shops`, accent: C.warning },
-    { label: "Out of stock", value: num(s.outOfStock), note: `${pct(s.outOfStock, s.rowCount)} of variants`, accent: C.critical },
     s.meta.connected
       ? {
           label: "Active Meta campaigns",
           value: num(s.campaigns.length),
-          note: `${num(s.meta.sellerCount)} sellers matched` + (s.meta.unmatched ? `, ${num(s.meta.unmatched)} not matched` : ""),
+          note: `${num(s.storeCount)} stores matched` + (s.meta.unmatched ? `, ${num(s.meta.unmatched)} not matched` : ""),
         }
       : { label: "Active Meta campaigns", value: "-", note: s.meta.error ? "could not load from Meta" : "Meta not connected yet" },
+    { label: "Products checked", value: num(s.variantCount), note: "variants in campaign stores" },
+    { label: `Below ${s.threshold}`, value: num(s.lowStock), note: `${pct(s.lowStock, s.variantCount)} of checked products`, accent: C.warning },
+    { label: "Out of stock", value: num(s.outOfStock), note: `${pct(s.outOfStock, s.variantCount)} of checked products`, accent: C.critical },
   ];
   tiles.forEach((t, i) => out.push(kpiTile(PAD + i * (tileW + gap), y, tileW, t)));
   y += 112 + 36;
 
   // Stock health: one stacked bar, 2px surface gap between segments
-  out.push(text(PAD, y, "Stock health", { size: 18, weight: 700 }));
+  out.push(text(PAD, y, "Stock in campaign stores", { size: 18, weight: 700 }));
   y += 16;
-  const healthy = Math.max(0, s.rowCount - s.lowStock);
+  const healthy = Math.max(0, s.variantCount - s.lowStock);
   const low = s.lowStock - s.outOfStock;
   const segments = [
     { label: "Out of stock", n: s.outOfStock, fill: C.critical },
@@ -113,16 +113,16 @@ module.exports = function renderDashboard(s) {
   const colW = (INNER - 40) / 2;
   const top = y;
 
-  out.push(text(PAD, y, "Shops with the most low-stock variants", { size: 18, weight: 700 }));
+  out.push(text(PAD, y, `Campaign stores with most below ${s.threshold}`, { size: 18, weight: 700 }));
   y += 22;
   const shops = s.topShops.slice(0, 8);
   const maxN = Math.max(1, ...shops.map(([, n]) => n));
   const labelW = 190;
   const barMax = colW - labelW - 60;
-  if (!shops.length) out.push(text(PAD, y + 20, "No low-stock variants", { size: 14, fill: C.muted }));
+  if (!shops.length) out.push(text(PAD, y + 20, s.storeCount ? `Every product has ${s.threshold}+ in stock` : "No campaign stores to check", { size: 14, fill: C.muted }));
   shops.forEach(([shop, n], i) => {
     const ry = y + i * 34;
-    out.push(text(PAD, ry + 19, cut(shop, 24), { size: 14, fill: C.text2 }));
+    out.push(text(PAD, ry + 19, cut(shop, 20), { size: 14, fill: C.text2 }));
     out.push(hbar(PAD + labelW, ry + 5, (n / maxN) * barMax, 20, C.series));
     out.push(text(PAD + labelW + (n / maxN) * barMax + 8, ry + 20, num(n), { size: 14, weight: 700 }));
   });
@@ -134,9 +134,9 @@ module.exports = function renderDashboard(s) {
   y += 22;
   const cols = [
     { h: "Campaign", x: 0, anchor: "start" },
-    { h: "Shop", x: colW * 0.42, anchor: "start" },
+    { h: "Store", x: colW * 0.42, anchor: "start" },
     { h: "Products", x: colW * 0.82, anchor: "end" },
-    { h: "Low stock", x: colW, anchor: "end" },
+    { h: `Below ${s.threshold}`, x: colW, anchor: "end" },
   ];
   cols.forEach((c) => out.push(text(tx + c.x, y + 16, c.h, { size: 13, weight: 700, fill: C.muted, anchor: c.anchor })));
   y += 26;
@@ -168,7 +168,7 @@ module.exports = function renderDashboard(s) {
     noteY += 22;
   }
   if (unmatched) {
-    out.push(text(tx, noteY, "Not matched = no shop name in the campaign name, so not used in stock numbers", { size: 13, fill: C.muted }));
+    out.push(text(tx, noteY, "Not matched = no store name in the campaign name, so not checked", { size: 13, fill: C.muted }));
     noteY += 22;
   }
   const rightBottom = Math.max(y + Math.max(1, campaigns.length + 1) * 34, noteY);
@@ -178,7 +178,7 @@ module.exports = function renderDashboard(s) {
     text(
       PAD,
       y,
-      `Low stock = available quantity (stock minus unpaid reservations) below ${s.threshold}. Full lists are in the Excel file.`,
+      `Only stores in active Meta campaigns are checked. Stock = quantity minus unpaid reservations. Full lists are in the Excel file.`,
       { size: 13, fill: C.muted },
     ),
   );

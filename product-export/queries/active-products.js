@@ -183,13 +183,12 @@ const stockStatus = (threshold) => ({
 });
 
 // One row per active product variant with its available stock.
-// sellerIds narrows it to those sellers; lowOnly keeps only variants below the threshold.
-function buildStockPipeline(status, threshold, { sellerIds, lowOnly = false } = {}) {
+// sellerIds narrows it to those sellers.
+function buildStockPipeline(status, threshold, { sellerIds } = {}) {
   return [
     { $match: { status, ...(sellerIds ? { sellerId: { $in: sellerIds } } : {}) } },
     { $unwind: "$variants" },
     { $addFields: { availableQuantity } },
-    ...(lowOnly ? [{ $match: { availableQuantity: { $lt: threshold } } }] : []),
     {
       $lookup: {
         from: "sellerdetails",
@@ -217,7 +216,7 @@ function buildStockPipeline(status, threshold, { sellerIds, lowOnly = false } = 
         stockStatus: stockStatus(threshold),
       },
     },
-    { $sort: lowOnly ? { availableQuantity: 1, shopName: 1, title: 1 } : { shopName: 1, availableQuantity: 1, title: 1 } },
+    { $sort: { shopName: 1, availableQuantity: 1, title: 1 } },
   ];
 }
 
@@ -267,8 +266,7 @@ async function buildSheets({ db, collection, aggregate, meta }) {
   }
   const withCampaigns = (row) => ({ ...row, metaCampaigns: campaignsBySeller.get(row.sellerId) || [] });
 
-  const lowStock = (await aggregate(products, buildStockPipeline(status, threshold, { lowOnly: true })).toArray()).map(withCampaigns);
-
+  // Only the stores in active Meta campaigns are checked; other stores are not in the report
   const sellerIds = [...campaignsBySeller.keys()];
   const campaignProducts = sellerIds.length
     ? (await aggregate(products, buildStockPipeline(status, threshold, { sellerIds })).toArray()).map(withCampaigns)
@@ -311,17 +309,25 @@ async function buildSheets({ db, collection, aggregate, meta }) {
   // Matched campaigns first; the unmatched ones go to the bottom of the tab
   campaignRows.sort((a, b) => Boolean(b.sellerId) - Boolean(a.sellerId));
 
+  // Campaign-store variants below the threshold, lowest stock first
+  const lowStock = campaignProducts
+    .filter((r) => r.availableQuantity < threshold)
+    .sort((a, b) => a.availableQuantity - b.availableQuantity || String(a.shopName).localeCompare(String(b.shopName)));
+
   const sheets = [
-    { name: "Products", cursor: aggregate(products, buildPipeline(status)), columns: COLUMNS },
-    { name: "Low stock", cursor: lowStock, columns: STOCK_COLUMNS, keepRows: true },
+    { name: "Meta campaigns", cursor: campaignRows, columns: META_CAMPAIGN_COLUMNS, keepRows: true },
+    { name: `Below ${threshold} - campaign stores`, cursor: lowStock, columns: STOCK_COLUMNS },
+    { name: "Campaign store products", cursor: campaignProducts, columns: STOCK_COLUMNS },
   ];
-  if (metaResult.connected) {
-    sheets.push(
-      { name: "Meta campaigns", cursor: campaignRows, columns: META_CAMPAIGN_COLUMNS, keepRows: true },
-      { name: "Meta campaign products", cursor: campaignProducts, columns: STOCK_COLUMNS },
-    );
-  }
-  return { sheets, context: { meta: { connected: metaResult.connected, error: metaResult.error, campaignRows } } };
+  return {
+    sheets,
+    context: {
+      meta: { connected: metaResult.connected, error: metaResult.error, campaignRows },
+      lowStock,
+      variantCount: campaignProducts.length,
+      storeCount: sellerIds.length,
+    },
+  };
 }
 
 // Active Meta campaigns matched to sellers; never throws, so a Meta problem
@@ -343,7 +349,7 @@ async function loadMetaCampaigns(db, meta) {
 const { fetchActiveCampaigns, matchCampaigns, loadMapping } = require("../src/meta");
 
 module.exports = {
-  title: `${status} products export`,
+  title: "Meta campaign stock report",
   type: "aggregate",
   pipeline: buildPipeline(status),
   columns: COLUMNS,

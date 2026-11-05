@@ -1,12 +1,14 @@
-# Product export — daily stock report to Slack
+# Product export — daily Meta campaign stock report to Slack
 
 Node.js job that runs once a day:
 
 1. Reads active products from MongoDB (**read only**: write stages `$out` / `$merge` are refused).
 2. Reads the active Meta (Ads Manager) campaigns with a read-only token and matches each one to a
    seller by the shop name in the campaign name, or by `meta-campaign-sellers.json`.
-3. Builds an Excel file (tabs: Products, Low stock, Meta campaigns, Meta campaign products) and a
-   dashboard image, posts both with a summary to Slack, and deletes the previous day's post.
+3. Checks only the stores in those campaigns: every product variant with less than
+   `LOW_STOCK_THRESHOLD` (5) in stock is flagged. Other stores are not in the report.
+4. Builds an Excel file (tabs: Meta campaigns, Below 5 - campaign stores, Campaign store products)
+   and a dashboard image, posts both with a summary to Slack, and deletes the previous day's post.
 
 No port, domain or Nginx is needed: it only makes outgoing connections (MongoDB, graph.facebook.com,
 slack.com). The server's IP must be allowed in MongoDB Atlas → Network Access.
